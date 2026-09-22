@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Quy Trình Điểm Danh Không Dừng & State Machine Cổng Trường",
+    "output": "docs/diagrams/html/gate_attendance_flow.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "happy-attendance-path",
+        "label": "Luồng điểm danh thành công",
+        "focus": ["step_walk", "step_tripwire", "step_track", "step_bestframe", "step_arcface", "step_matcher", "step_debounce", "step_state", "step_push"],
+        "note": "Theo dõi bước chân học sinh từ lúc bước qua cổng đến khi phụ huynh nhận thông báo tức thì."
+      },
+      {
+        "id": "filter-exception-path",
+        "label": "Xử lý lọc trùng và ngoại lệ",
+        "focus": ["step_debounce", "step_cooldown_drop", "step_state", "step_short_cancel"],
+        "note": "Theo dõi cơ chế triệt tiêu 100% bản ghi trùng khi đứng ở cổng và tự động hủy lượt ra ngoài ngắn hạn."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "field", "label": "Hiện Trường & Camera IP" },
+    { "id": "vision", "label": "Thị Giác AI & Bám Vết" },
+    { "id": "matching", "label": "Đối Soát Bộ Nhớ 1:N" },
+    { "id": "statemachine", "label": "State Machine & Dữ Liệu" },
+    { "id": "channels", "label": "Kênh Thông Báo & Cổng" },
+    { "id": "exceptions", "label": "Lọc Nhiễu & Ngoại Lệ", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "ingress", "label": "Thu nhận & Bám vết", "fromCol": 0, "toCol": 1 },
+    { "id": "inference", "label": "Suy luận AI & Đối soát", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "processing", "label": "Chốt giờ & Thông báo", "fromCol": 4, "toCol": 5 }
+  ],
+  "groups": [
+    { "id": "ai_pipeline", "label": "Đường ống AI tốc độ cao", "lane": "vision", "fromCol": 1, "toCol": 3, "variant": "emphasis" },
+    { "id": "noise_filters", "label": "Khử nhiễu hiện trường", "lane": "exceptions", "fromCol": 4, "toCol": 5, "variant": "security" }
+  ],
+  "mainPath": [
+    "step_walk",
+    "step_tripwire",
+    "step_track",
+    "step_bestframe",
+    "step_arcface",
+    "step_matcher",
+    "step_debounce",
+    "step_state",
+    "step_push"
+  ],
+  "nodes": [
+    { "id": "step_walk", "lane": "field", "col": 0, "type": "external", "label": "Bước Qua Cổng", "sublabel": "Cự ly 2m – 5m", "tag": "Tự nhiên" },
+    { "id": "step_tripwire", "lane": "field", "col": 1, "type": "backend", "label": "Cắt Vạch Ảo", "sublabel": "Tripwire 2 chiều", "tag": "Định hướng" },
+    { "id": "step_track", "lane": "vision", "col": 1, "type": "backend", "label": "Bám Vết", "sublabel": "ByteTrack" },
+    { "id": "step_bestframe", "lane": "vision", "col": 2, "type": "backend", "label": "Lọc Khung", "sublabel": "eDifFIQA", "tag": "Nét nhất" },
+    { "id": "step_arcface", "lane": "vision", "col": 3, "type": "backend", "label": "Vector 512D", "sublabel": "ArcFace ONNX", "tag": "RTX 3060" },
+    { "id": "step_matcher", "lane": "matching", "col": 3, "type": "backend", "label": "Đối Soát 1:N", "sublabel": "RAM < 0.5ms" },
+    { "id": "step_debounce", "lane": "statemachine", "col": 4, "type": "database", "label": "Lọc Cooldown", "sublabel": "Redis 90s" },
+    { "id": "step_cooldown_drop", "lane": "exceptions", "col": 4, "type": "security", "label": "Bỏ Qua Trùng", "sublabel": "Cửa sổ 90s", "tag": "Lọc log" },
+    { "id": "step_state", "lane": "statemachine", "col": 5, "type": "backend", "label": "State Machine", "sublabel": "Vào / Ra", "tag": "Chốt giờ" },
+    { "id": "step_push", "lane": "channels", "col": 5, "type": "external", "label": "Thông Báo", "sublabel": "App Phụ huynh", "tag": "FCM < 2s" },
+    { "id": "step_short_cancel", "lane": "exceptions", "col": 5, "type": "security", "label": "Hủy Lượt Ngắn", "sublabel": "Dưới 5 phút", "tag": "Bảo lưu" }
+  ],
+  "edges": [
+    { "from": "step_walk", "to": "step_tripwire" },
+    { "from": "step_tripwire", "to": "step_track" },
+    { "from": "step_track", "to": "step_bestframe" },
+    { "from": "step_bestframe", "to": "step_arcface" },
+    { "from": "step_arcface", "to": "step_matcher" },
+    { "from": "step_matcher", "to": "step_debounce" },
+    { "from": "step_debounce", "to": "step_state", "label": "hợp lệ" },
+    { "from": "step_debounce", "to": "step_cooldown_drop", "label": "< 90s", "variant": "security", "role": "error" },
+    { "from": "step_state", "to": "step_push", "label": "thông báo", "variant": "emphasis" },
+    { "from": "step_state", "to": "step_short_cancel", "label": "< 5p", "variant": "security", "role": "error" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Nhận Diện Bước Đi",
+      "items": [
+        "Học sinh bước qua cổng ở tốc độ bình thường 1.2 m/s",
+        "Vạch ảo Tripwire xác định chiều Vào hoặc Ra",
+        "ByteTrack bám vết ổn định cấp phát track_id duy nhất"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Suy Luận & Đối Soát",
+      "items": [
+        "Bộ lọc eDifFIQA chỉ gửi 1 ảnh nét nhất sang GPU",
+        "Mô hình ArcFace 512D trích xuất vector khuôn mặt",
+        "base-sdk-edge đối soát 1:N trong bộ nhớ RAM dưới 0.5ms"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Nghiệp Vụ & Thông Báo",
+      "items": [
+        "Cửa sổ Cooldown 90s triệt tiêu 100% bản ghi trùng",
+        "Tự động chốt Giờ Vào sáng và Giờ Ra chiều",
+        "Gửi thông báo tức thì lên App phụ huynh dưới 2 giây"
+      ]
+    }
+  ]
+}

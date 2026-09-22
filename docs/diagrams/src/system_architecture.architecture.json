@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Kiến Trúc Hệ Thống Điểm Danh Không Dừng & Kiểm Soát Ra Vào mschool",
+    "output": "docs/diagrams/html/system_architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "attendance-path",
+        "label": "Luồng điểm danh không dừng",
+        "focus": ["cam_gate", "ingest_worker", "track_filter", "ai_engine", "edge_matcher", "core_be", "cache_redis", "app_parent"],
+        "note": "Theo dõi luồng xử lý từ camera cổng qua bám vết AI đến thông báo điện thoại phụ huynh."
+      },
+      {
+        "id": "classroom-path",
+        "label": "Điểm danh lớp học toàn cảnh",
+        "focus": ["cam_class", "ai_engine", "edge_matcher", "core_be", "db_primary"],
+        "note": "Theo dõi tiến trình chụp ảnh toàn cảnh theo thời khóa biểu và đối soát danh sách lớp trong RAM."
+      },
+      {
+        "id": "security-and-data",
+        "label": "Bảo mật và điều hành hiện trường",
+        "focus": ["edge_matcher", "core_be", "cache_redis", "db_primary", "cms_guard"],
+        "note": "Cô lập dữ liệu sinh trắc học mã hóa AES-256 và cảnh báo an ninh phòng bảo vệ."
+      }
+    ]
+  },
+  "components": [
+    { "id": "cam_gate", "type": "external", "label": "Camera Cổng Chính", "sublabel": "RTSP Full HD 25 FPS", "pos": [50, 120], "size": [150, 60], "tag": "WDR ≥ 120dB" },
+    { "id": "cam_class", "type": "external", "label": "Camera Lớp Học", "sublabel": "50 Phòng học góc rộng", "pos": [50, 380], "size": [150, 60], "tag": "Snapshot cron" },
+
+    { "id": "ingest_worker", "type": "backend", "label": "Thu Nhận Luồng", "sublabel": "Motion Filter", "pos": [280, 120], "size": [150, 60], "tag": "Tripwire In/Out" },
+    { "id": "track_filter", "type": "backend", "label": "Bám Vết & Lọc Khung", "sublabel": "ByteTrack + eDifFIQA", "pos": [280, 250], "size": [150, 60], "tag": "Best Frame" },
+    { "id": "ai_engine", "type": "backend", "label": "Suy Luận AI Lõi", "sublabel": "SCRFD + ArcFace ONNX", "pos": [280, 380], "size": [150, 60], "tag": "GPU RTX 3060" },
+
+    { "id": "cache_redis", "type": "database", "label": "Redis Cache", "sublabel": "Debounce Cooldown 90s", "pos": [520, 120], "size": [150, 60], "tag": "Chặn nổ log" },
+    { "id": "core_be", "type": "backend", "label": "Nghiệp Vụ Lõi", "sublabel": "State Machine", "pos": [520, 250], "size": [150, 60], "tag": "Tách Giờ Vào/Ra" },
+    { "id": "edge_matcher", "type": "backend", "label": "Đối Soát Bộ Nhớ", "sublabel": "base-sdk-edge 1:N", "pos": [520, 380], "size": [150, 60], "tag": "RAM < 0.5ms" },
+
+    { "id": "db_primary", "type": "database", "label": "CSDL Quan Hệ", "sublabel": "PostgreSQL Vector", "pos": [740, 120], "size": [150, 60], "tag": "Mã hóa AES-256" },
+
+    { "id": "cms_guard", "type": "frontend", "label": "Web CMS Bảo Vệ", "sublabel": "Giám sát thời gian thực", "pos": [960, 200], "size": [150, 60], "tag": "Cảnh báo đỏ" },
+    { "id": "app_parent", "type": "external", "label": "App Phụ Huynh", "sublabel": "Mobile App iOS/Android", "pos": [960, 340], "size": [150, 60], "tag": "FCM Push < 2s" }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Máy chủ biên micro-server (GPU RTX 3060 12GB VRAM, Intel Xeon 32 luồng, 62GB RAM)",
+      "wraps": ["ingest_worker", "track_filter", "ai_engine", "edge_matcher", "cache_redis", "core_be", "db_primary"]
+    }
+  ],
+  "connections": [
+    { "id": "gate-stream", "from": "cam_gate", "to": "ingest_worker", "label": "RTSP", "variant": "emphasis" },
+    { "id": "class-stream", "from": "cam_class", "to": "ai_engine", "label": "Snapshot" },
+    { "id": "motion-to-track", "from": "ingest_worker", "to": "track_filter", "label": "vạch ảo", "fromSide": "bottom", "toSide": "top", "labelAt": [400, 200] },
+    { "id": "track-to-ai", "from": "track_filter", "to": "ai_engine", "label": "ảnh đẹp nhất", "fromSide": "bottom", "toSide": "top", "labelAt": [405, 330] },
+    { "id": "ai-to-match", "from": "ai_engine", "to": "edge_matcher", "label": "vector 512D" },
+    { "id": "match-to-core", "from": "edge_matcher", "to": "core_be", "label": "mã học sinh", "fromSide": "top", "toSide": "bottom", "labelDx": 45 },
+    { "id": "core-to-cache", "from": "core_be", "to": "cache_redis", "label": "cooldown", "fromSide": "top", "toSide": "bottom", "labelDx": 40 },
+    { "id": "core-to-db", "from": "core_be", "to": "db_primary", "label": "ghi nhận", "fromSide": "right", "toSide": "bottom" },
+    { "id": "core-to-cms", "from": "core_be", "to": "cms_guard", "label": "WebSocket", "labelAt": [890, 215] },
+    { "id": "core-to-app", "from": "core_be", "to": "app_parent", "label": "FCM Push", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Thu Nhận Hiện Trường",
+      "items": [
+        "Camera IP Cổng chống ngược sáng True WDR ≥ 120dB",
+        "Camera Lớp học kích hoạt chụp ảnh theo thời khóa biểu"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Xử Lý Trí Tuệ Nhân Tạo",
+      "items": [
+        "ByteTrack bám vết và eDifFIQA lọc 1 ảnh đẹp nhất",
+        "ArcFace 512D ONNX suy luận tốc độ cao trên GPU RTX 3060",
+        "base-sdk-edge đối soát 1:N trong RAM dưới 0.5ms"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Nghiệp Vụ & Bảo Mật",
+      "items": [
+        "State Machine tự động tách Giờ Vào sáng / Giờ Ra chiều",
+        "Cửa sổ Cooldown 90s triệt tiêu 100% bản ghi trùng",
+        "Mã hóa AES-256 tuân thủ nghiêm ngặt Nghị định 13"
+      ]
+    }
+  ]
+}

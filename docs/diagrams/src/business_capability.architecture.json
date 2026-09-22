@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Bản Đồ Năng Lực Nghiệp Vụ Toàn Diện mschool",
+    "output": "docs/diagrams/html/business_capability.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "gate-capability",
+        "label": "Năng lực kiểm soát cổng",
+        "focus": ["cap_walk", "cap_trip", "cap_visitor", "cap_matcher", "cap_notify"],
+        "note": "Theo dõi khả năng nhận diện không dừng, phân làn vạch ảo và bảo vệ hiện trường."
+      },
+      {
+        "id": "classroom-capability",
+        "label": "Năng lực điểm danh lớp học",
+        "focus": ["cap_sched", "cap_crowd", "cap_audit", "cap_matcher", "cap_notify"],
+        "note": "Theo dõi khả năng quét đám đông theo thời khóa biểu và chốt sổ đầu bài điện tử."
+      },
+      {
+        "id": "biometric-platform",
+        "label": "Nền tảng sinh trắc và điều hành",
+        "focus": ["cap_enroll", "cap_matcher", "cap_notify"],
+        "note": "Quản trị dữ liệu chuẩn hóa, đối soát bộ nhớ siêu tốc và điều phối thông báo đa kênh."
+      }
+    ]
+  },
+  "components": [
+    { "id": "cap_walk", "type": "external", "label": "Quét Không Dừng", "sublabel": "Khoảng cách 2m – 5m", "pos": [70, 140], "size": [160, 60], "tag": "Tốc độ ≤ 300ms" },
+    { "id": "cap_trip", "type": "backend", "label": "Vạch Ảo Hai Chiều", "sublabel": "Virtual Tripwire In/Out", "pos": [70, 270], "size": [160, 60], "tag": "ByteTrack" },
+    { "id": "cap_visitor", "type": "security", "label": "Quản Lý Khách Lạ", "sublabel": "Phụ huynh & Khách hẹn", "pos": [70, 400], "size": [160, 60], "tag": "Thời hạn TTL" },
+
+    { "id": "cap_enroll", "type": "frontend", "label": "Thu Thập Sinh Trắc", "sublabel": "Multi-shot 3 góc độ", "pos": [440, 140], "size": [160, 60], "tag": "Lọc eDifFIQA" },
+    { "id": "cap_matcher", "type": "backend", "label": "Đối Soát Bộ Nhớ RAM", "sublabel": "base-sdk-edge 1:N", "pos": [440, 270], "size": [160, 60], "tag": "Thời gian < 0.5ms" },
+    { "id": "cap_notify", "type": "backend", "label": "Điều Hành Đa Kênh", "sublabel": "State Machine & Cache", "pos": [440, 400], "size": [160, 60], "tag": "FCM Push < 2s" },
+
+    { "id": "cap_sched", "type": "backend", "label": "Thời Khóa Biểu Tự Động", "sublabel": "Đọc lịch học từ CSDL", "pos": [820, 140], "size": [160, 60], "tag": "Đầu mỗi tiết học" },
+    { "id": "cap_crowd", "type": "backend", "label": "Chụp Mẫu Toàn Cảnh", "sublabel": "Quét 40 học sinh/ảnh", "pos": [820, 270], "size": [160, 60], "tag": "Xong dưới 1 giây" },
+    { "id": "cap_audit", "type": "frontend", "label": "Sổ Đầu Bài Điện Tử", "sublabel": "Đối soát bục giảng & sĩ số", "pos": [820, 400], "size": [160, 60], "tag": "Bẫy nhầm lớp" }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Phân hệ kiểm soát cổng không dừng",
+      "wraps": ["cap_walk", "cap_trip", "cap_visitor"]
+    },
+    {
+      "kind": "region",
+      "label": "Nền tảng sinh trắc học & điều hành trung tâm",
+      "wraps": ["cap_enroll", "cap_matcher", "cap_notify"]
+    },
+    {
+      "kind": "region",
+      "label": "Phân hệ điểm danh lớp học tự động",
+      "wraps": ["cap_sched", "cap_crowd", "cap_audit"]
+    }
+  ],
+  "connections": [
+    { "id": "walk-to-trip", "from": "cap_walk", "to": "cap_trip", "label": "quỹ đạo", "fromSide": "bottom", "toSide": "top", "labelAt": [190, 235] },
+    { "id": "trip-to-visitor", "from": "cap_trip", "to": "cap_visitor", "label": "phân tách", "fromSide": "bottom", "toSide": "top", "labelAt": [195, 365] },
+    { "id": "trip-to-match", "from": "cap_trip", "to": "cap_matcher", "label": "vector 512D", "variant": "emphasis" },
+    { "id": "enroll-to-match", "from": "cap_enroll", "to": "cap_matcher", "label": "vector mẫu", "fromSide": "bottom", "toSide": "top", "labelAt": [565, 235] },
+    { "id": "match-to-notify", "from": "cap_matcher", "to": "cap_notify", "label": "kết quả", "fromSide": "bottom", "toSide": "top", "labelAt": [560, 365] },
+    { "id": "sched-to-crowd", "from": "cap_sched", "to": "cap_crowd", "label": "lịch học", "fromSide": "bottom", "toSide": "top", "labelAt": [940, 235] },
+    { "id": "crowd-to-audit", "from": "cap_crowd", "to": "cap_audit", "label": "nhận diện", "fromSide": "bottom", "toSide": "top", "labelAt": [945, 365] },
+    { "id": "crowd-to-match", "from": "cap_crowd", "to": "cap_matcher", "label": "đối soát lớp", "variant": "emphasis", "fromSide": "left", "toSide": "right" },
+    { "id": "notify-to-audit", "from": "cap_notify", "to": "cap_audit", "label": "sổ đầu bài", "fromSide": "right", "toSide": "left" },
+    { "id": "visitor-to-notify", "from": "cap_visitor", "to": "cap_notify", "label": "cảnh báo đỏ", "variant": "security", "fromSide": "right", "toSide": "left" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Năng Lực Kiểm Soát Cổng",
+      "items": [
+        "Nhận diện tự nhiên 2m – 5m, không dừng bước",
+        "Tripwire 2 chiều tự động tách Giờ Vào và Giờ Ra",
+        "Phân hệ khách và phụ huynh cấp quyền có thời hạn TTL"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Năng Lực Điểm Danh Lớp Học",
+      "items": [
+        "Tự động kích hoạt theo Thời khóa biểu trường",
+        "Chụp mẫu toàn cảnh bóc tách 40 học sinh dưới 1 giây",
+        "Đối soát bục giảng giáo viên và bẫy ngồi nhầm lớp"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Quản Trị Sinh Trắc & Vận Hành",
+      "items": [
+        "Thu thập Multi-shot 3 góc độ kèm bộ lọc eDifFIQA",
+        "Đối soát 1:N trong bộ nhớ RAM siêu tốc < 0.5ms",
+        "Thông báo biến động về Mobile App phụ huynh < 2 giây"
+      ]
+    }
+  ]
+}

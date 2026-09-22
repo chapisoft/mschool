@@ -1,0 +1,173 @@
+# ==============================================================================
+# MSCHOOL ROOT .GITIGNORE
+# Comprehensive Ignore Rules for Python, Java, Next.js, Flutter, Docker & OS
+# ==============================================================================
+
+# ── 1. Operating System Files ────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ── 2. IDE & Editor Configurations ───────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.settings/
+.project
+.classpath
+*.sublime-project
+*.sublime-workspace
+
+# ── 3. Secrets, Keys & Environment Variables ─────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+*.jks
+*.keystore
+id_rsa
+id_rsa.pub
+secrets/
+
+# ── 4. Python & AI Services ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Python Virtual Environments
+.env/
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing & Linting Caches
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.pytype/
+.ruff_cache/
+pyrightconfig.json.bak
+
+# ── 5. Java & Spring Boot Backend ────────────────────────────────────────────
+target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# Gradle Caches
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# ── 6. Node.js & Web CMS (Next.js / TypeScript) ──────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Next.js Build Output
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# ── 7. Mobile App (Flutter / Dart) ───────────────────────────────────────────
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+flutter_*.png
+
+# Android Specific (inside mobile app)
+**/android/app/release/
+**/android/app/build/
+**/android/.gradle/
+**/android/captures/
+**/android/local.properties
+
+# iOS Specific (inside mobile app)
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.framework
+**/ios/*.mode1v3
+**/ios/*.mode2v3
+**/ios/*.moved-aside
+**/ios/*.pbxuser
+**/ios/*.perspectivev3
+**/ios/**/xcuserdata/
+**/ios/**/xcshareddata/
+**/ios/.generated/
+
+# ── 8. Docker & Database Volumes ─────────────────────────────────────────────
+pgdata/
+redisdata/
+mediastorage/
+docker-compose.override.yml
+*.sock
+
+# ── 9. Logs & Temporary Files ────────────────────────────────────────────────
+logs/
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+scratch/

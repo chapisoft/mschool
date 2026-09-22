@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Bản Đồ Giá Trị Toàn Diện Hệ Sinh Thái Học Đường mschool",
+    "output": "docs/diagrams/html/value_map.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "school-value",
+        "label": "Giá trị cho nhà trường và giáo viên",
+        "focus": ["node_campus", "node_teacher", "node_audit", "node_engine", "node_platform"],
+        "note": "Số hóa quản lý chuyên cần, giải phóng 100% thời gian điểm danh thủ công cho thầy cô giáo."
+      },
+      {
+        "id": "family-value",
+        "label": "Giá trị cho phụ huynh và học sinh",
+        "focus": ["node_parent", "node_student", "node_community", "node_engine", "node_privacy"],
+        "note": "Xóa bỏ 100% nỗi bất an trốn học, mang lại trải nghiệm tự nhiên không cần dừng bước hay lo mất thẻ."
+      }
+    ]
+  },
+  "components": [
+    { "id": "node_campus", "type": "frontend", "label": "Trường Học Thông Minh", "sublabel": "Smart Campus 4.0", "pos": [80, 130], "size": [160, 60], "tag": "Nâng tầm uy tín" },
+    { "id": "node_teacher", "type": "backend", "label": "Giải Phóng Giảng Dạy", "sublabel": "Tiết kiệm 1.800h/năm", "pos": [80, 260], "size": [160, 60], "tag": "100% tự động" },
+    { "id": "node_audit", "type": "database", "label": "Báo Cáo Chuyên Cần", "sublabel": "Phục vụ Sở/Phòng GD", "pos": [80, 390], "size": [160, 60], "tag": "Dữ liệu thời gian thực" },
+
+    { "id": "node_engine", "type": "backend", "label": "Bộ Máy Sinh Trắc Học", "sublabel": "Độ chính xác ≥ 98.5%", "pos": [460, 130], "size": [160, 60], "tag": "Cổng & Lớp học" },
+    { "id": "node_privacy", "type": "security", "label": "Bảo Mật & Pháp Lý", "sublabel": "Mã hóa AES-256", "pos": [460, 260], "size": [160, 60], "tag": "Nghị định 13" },
+    { "id": "node_platform", "type": "backend", "label": "Hạ Tầng Biên Độc Lập", "sublabel": "micro-server RTX 3060", "pos": [460, 390], "size": [160, 60], "tag": "SLA ≥ 99.9%" },
+
+    { "id": "node_parent", "type": "external", "label": "An Tâm Tuyệt Đối", "sublabel": "Thông báo App < 2 giây", "pos": [840, 130], "size": [160, 60], "tag": "Đồng hành cùng con" },
+    { "id": "node_student", "type": "frontend", "label": "Trải Nghiệm Văn Minh", "sublabel": "Bước đi tự nhiên 2m–5m", "pos": [840, 260], "size": [160, 60], "tag": "Không lo mất thẻ" },
+    { "id": "node_community", "type": "security", "label": "An Toàn Học Đường", "sublabel": "Chặn 100% người lạ", "pos": [840, 390], "size": [160, 60], "tag": "Môi trường an ninh" }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Trụ cột giá trị Nhà trường & Thầy cô giáo",
+      "wraps": ["node_campus", "node_teacher", "node_audit"]
+    },
+    {
+      "kind": "region",
+      "label": "Trọng tâm công nghệ & nền tảng mschool",
+      "wraps": ["node_engine", "node_privacy", "node_platform"]
+    },
+    {
+      "kind": "region",
+      "label": "Trụ cột giá trị Phụ huynh & Học sinh",
+      "wraps": ["node_parent", "node_student", "node_community"]
+    }
+  ],
+  "connections": [
+    { "id": "campus-to-teacher", "from": "node_campus", "to": "node_teacher", "fromSide": "bottom", "toSide": "top" },
+    { "id": "teacher-to-audit", "from": "node_teacher", "to": "node_audit", "fromSide": "bottom", "toSide": "top" },
+    { "id": "engine-to-privacy", "from": "node_engine", "to": "node_privacy", "fromSide": "bottom", "toSide": "top" },
+    { "id": "privacy-to-platform", "from": "node_privacy", "to": "node_platform", "fromSide": "bottom", "toSide": "top" },
+    { "id": "parent-to-student", "from": "node_parent", "to": "node_student", "fromSide": "bottom", "toSide": "top" },
+    { "id": "student-to-comm", "from": "node_student", "to": "node_community", "fromSide": "bottom", "toSide": "top" },
+
+    { "id": "engine-to-campus", "from": "node_engine", "to": "node_campus", "label": "số hóa", "variant": "emphasis", "fromSide": "left", "toSide": "right" },
+    { "id": "engine-to-parent", "from": "node_engine", "to": "node_parent", "label": "thông báo", "variant": "emphasis", "fromSide": "right", "toSide": "left" },
+    { "id": "privacy-to-teacher", "from": "node_privacy", "to": "node_teacher", "label": "minh bạch", "fromSide": "left", "toSide": "right" },
+    { "id": "privacy-to-student", "from": "node_privacy", "to": "node_student", "label": "bảo vệ danh tính", "variant": "security", "fromSide": "right", "toSide": "left" },
+    { "id": "platform-to-audit", "from": "node_platform", "to": "node_audit", "label": "sẵn sàng", "fromSide": "left", "toSide": "right" },
+    { "id": "platform-to-comm", "from": "node_platform", "to": "node_community", "label": "vận hành 24/7", "fromSide": "right", "toSide": "left" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Nhà Trường & Giáo Viên",
+      "items": [
+        "Tiết kiệm 1.800 giờ giảng dạy và quản lý mỗi năm",
+        "Loại bỏ hoàn toàn việc ghi chép sổ đầu bài thủ công",
+        "Nắm bắt sĩ số và tỷ lệ chuyên cần thời gian thực"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Nền Tảng Vận Hành mschool",
+      "items": [
+        "Vận hành 100% trên máy chủ nội bộ micro-server",
+        "Mã hóa cơ sở dữ liệu AES-256 tuân thủ Nghị định 13",
+        "Cam kết độ sẵn sàng SLA ≥ 99.9%, tự phục hồi tức thì"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Phụ Huynh & Học Sinh",
+      "items": [
+        "Nhận thông báo tức thì khi con tới trường và tan học",
+        "Học sinh bước đi tự do, không lo quên thẻ hay mất thẻ",
+        "Kiến tạo môi trường giáo dục an toàn và văn minh"
+      ]
+    }
+  ]
+}

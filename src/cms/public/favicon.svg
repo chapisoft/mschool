@@ -1,0 +1,18 @@
+<svg width="32" height="32" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="faviconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="108" height="108" rx="28" fill="url(#faviconGrad)" />
+  <path d="M26 40 V28 C26 26.8954 26.8954 26 28 26 H40" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-opacity="0.95" />
+  <path d="M80 26 H92 C93.1046 26 94 26.8954 94 28 V40" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-opacity="0.95" />
+  <path d="M26 80 V92 C26 93.1046 26.8954 94 28 94 H40" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-opacity="0.95" />
+  <path d="M80 94 H92 C93.1046 94 94 93.1046 94 92 V80" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-opacity="0.95" />
+  <path d="M60 42 L86 54 L60 66 L34 54 Z" fill="#FFFFFF" />
+  <path d="M78 58 V73 C78 74.1 78.9 75 80 75 C81.1 75 82 74.1 82 73 V59.5" stroke="#FDE047" stroke-width="4" stroke-linecap="round" />
+  <path d="M44 63.5 V77 C44 80 50 83 60 83 C70 83 76 80 76 77 V63.5" fill="#FFFFFF" fill-opacity="0.95" />
+  <circle cx="60" cy="54" r="3.5" fill="#38BDF8" />
+</svg>

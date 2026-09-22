@@ -1,0 +1,104 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Lộ Trình Phân Kỳ Triển Khai Thực Nghiệm 6 Tuần mschool",
+    "output": "docs/diagrams/html/rollout_roadmap.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "critical-rollout-path",
+        "label": "Đường găng triển khai 6 tuần",
+        "focus": ["step_w1_survey", "step_w1_server", "step_w2_network", "step_w3_gate", "step_w4_pilot", "step_w5_app", "step_w6_classes", "step_w6_handover"],
+        "note": "Theo dõi các mốc nghiệm thu chính từ khảo sát mặt bằng đến ký biên bản bàn giao."
+      },
+      {
+        "id": "data-and-visitor",
+        "label": "Nhánh dữ liệu sinh trắc và đón khách",
+        "focus": ["step_w2_enroll", "step_w4_pilot", "step_w5_visitor"],
+        "note": "Theo dõi việc nạp dữ liệu chuẩn hóa và phân hệ đón tiếp phụ huynh, khách vãng lai."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "governance", "label": "Chỉ Đạo & Khảo Sát" },
+    { "id": "infra", "label": "Hạ Tầng & Camera" },
+    { "id": "data", "label": "Dữ Liệu Sinh Trắc Học" },
+    { "id": "pilot", "label": "Thí Điểm Cổng Trường" },
+    { "id": "scale", "label": "Lớp Học & Ứng Dụng" },
+    { "id": "acceptance", "label": "Nghiệm Thu Bàn Giao" }
+  ],
+  "phases": [
+    { "id": "p1_prep", "label": "Tuần 1 – 2: Chuẩn bị & Dữ liệu", "fromCol": 0, "toCol": 1 },
+    { "id": "p2_pilot", "label": "Tuần 3 – 4: Thí điểm Cổng chính", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "p3_scale", "label": "Tuần 5 – 6: Mở rộng & Nghiệm thu", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "pilot_gate_group", "label": "Đo kiểm hiện trường cổng", "lane": "pilot", "fromCol": 2, "toCol": 4, "variant": "emphasis" },
+    { "id": "scale_app_group", "label": "Triển khai lớp học và ứng dụng", "lane": "scale", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": [
+    "step_w1_survey",
+    "step_w1_server",
+    "step_w2_network",
+    "step_w3_gate",
+    "step_w4_pilot",
+    "step_w5_app",
+    "step_w6_classes",
+    "step_w6_handover"
+  ],
+  "nodes": [
+    { "id": "step_w1_survey", "lane": "governance", "col": 0, "type": "frontend", "label": "Khảo Sát Thực Địa", "sublabel": "Góc quay & cáp LAN", "width": 128 },
+    { "id": "step_w1_server", "lane": "infra", "col": 0, "type": "backend", "label": "Cài Đặt Máy Chủ", "sublabel": "micro-server GPU", "width": 128 },
+    { "id": "step_w2_network", "lane": "infra", "col": 1, "type": "backend", "label": "Thi Công Cáp PoE", "sublabel": "Switch Gigabit Cat6", "width": 128 },
+    { "id": "step_w2_enroll", "lane": "data", "col": 1, "type": "database", "label": "Thu Thập Sinh Trắc", "sublabel": "Multi-shot 3 góc độ", "tag": "eDifFIQA", "width": 128 },
+    { "id": "step_w3_gate", "lane": "infra", "col": 2, "type": "external", "label": "Lắp Camera Cổng", "sublabel": "WDR & Tripwire", "width": 128 },
+    { "id": "step_w4_pilot", "lane": "pilot", "col": 3, "type": "backend", "label": "Thí Điểm Cổng", "sublabel": "Giờ đón học sinh", "tag": "TAR ≥ 98.5%", "width": 128 },
+    { "id": "step_w5_app", "lane": "scale", "col": 4, "type": "external", "label": "Kích Hoạt App", "sublabel": "FCM Push < 2s", "tag": "Phụ huynh", "width": 128 },
+    { "id": "step_w5_visitor", "lane": "pilot", "col": 4, "type": "security", "label": "Đón Khách Hẹn", "sublabel": "Visitor có hạn TTL", "width": 128 },
+    { "id": "step_w6_classes", "lane": "scale", "col": 5, "type": "backend", "label": "Điểm Danh 50 Lớp", "sublabel": "Theo thời khóa biểu", "tag": "Toàn trường", "width": 128 },
+    { "id": "step_w6_handover", "lane": "acceptance", "col": 5, "type": "security", "label": "Nghiệm Thu Bàn Giao", "sublabel": "Ký biên bản chính thức", "tag": "Hoàn tất", "width": 128 }
+  ],
+  "edges": [
+    { "from": "step_w1_survey", "to": "step_w1_server" },
+    { "from": "step_w1_server", "to": "step_w2_network" },
+    { "from": "step_w1_server", "to": "step_w2_enroll", "label": "nạp dữ liệu" },
+    { "from": "step_w2_network", "to": "step_w3_gate" },
+    { "from": "step_w3_gate", "to": "step_w4_pilot", "label": "luồng RTSP" },
+    { "from": "step_w2_enroll", "to": "step_w4_pilot", "label": "vector 512D" },
+    { "from": "step_w4_pilot", "to": "step_w5_app", "label": "mở rộng", "variant": "emphasis" },
+    { "from": "step_w4_pilot", "to": "step_w5_visitor" },
+    { "from": "step_w5_app", "to": "step_w6_classes", "label": "đồng bộ" },
+    { "from": "step_w6_classes", "to": "step_w6_handover", "label": "nghiệm thu", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Giai Đoạn 1: Chuẩn Bị (Tuần 1 – 2)",
+      "items": [
+        "Khảo sát thực địa vị trí lắp đặt camera và mạng LAN",
+        "Khởi tạo máy chủ biên micro-server và Docker containers",
+        "Thu thập dữ liệu khuôn mặt 3 góc độ, lọc sạch 100% bằng eDifFIQA"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Giai Đoạn 2: Thí Điểm Cổng (Tuần 3 – 4)",
+      "items": [
+        "Lắp 2 camera cổng WDR ≥ 120dB, cấu hình vạch ảo Tripwire",
+        "Chạy điểm danh thực tế giờ cao điểm đón học sinh buổi sáng",
+        "Đối soát độc lập với sổ tay giám thị, xác thực TAR ≥ 98.5%"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Giai Đoạn 3: Mở Rộng & Bàn Giao (Tuần 5 – 6)",
+      "items": [
+        "Đẩy thông báo biến động điểm danh về Mobile App phụ huynh",
+        "Tích hợp camera 50 phòng học theo lịch thời khóa biểu",
+        "Tập huấn giáo viên, bảo vệ và ký biên bản nghiệm thu bàn giao"
+      ]
+    }
+  ]
+}
