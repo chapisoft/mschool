@@ -57,38 +57,38 @@ export default function ClassroomMatrixPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">{t('classroomMatrix.title')}</h2>
-          <p className="text-sm text-slate-400">{t('classroomMatrix.subtitle')}</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">{t('classroomMatrix.title')}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t('classroomMatrix.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={loadMatrixData}
             disabled={isLoading}
-            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs transition-colors"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-slate-500' : 'text-slate-500'}`} />
             {t('common.refresh')}
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Bộ lọc khối lớp */}
-      <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 p-2 rounded-xl w-fit">
+      <div className="flex items-center gap-1.5 bg-white border border-slate-200 p-1.5 rounded-xl w-fit shadow-xs">
         {['ALL', '10', '11', '12'].map((g) => (
           <button
             key={g}
             onClick={() => setSelectedGrade(g)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               selectedGrade === g
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             }`}
           >
             {g === 'ALL' ? t('classroomMatrix.all') : `${t('classroomMatrix.grade')} ${g}`}
@@ -96,42 +96,46 @@ export default function ClassroomMatrixPage() {
         ))}
       </div>
 
-      {/* Lưới 50 phòng học */}
+      {/* Lưới các phòng học */}
       {isLoading ? (
-        <div className="py-12 text-center text-slate-500">{t('common.loading')}</div>
+        <div className="py-12 text-center text-slate-400">{t('common.loading')}</div>
       ) : filteredClassrooms.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {filteredClassrooms.map((cls) => (
             <div
               key={cls.id}
-              className={`p-4 rounded-xl border transition-all ${
+              className={`p-4 rounded-2xl border transition-all shadow-xs ${
                 cls.status === ClassroomPeriodStatus.MISSING
-                  ? 'bg-rose-950/20 border-rose-800/40 hover:border-rose-700'
+                  ? 'bg-rose-50/60 border-rose-200 hover:border-rose-300'
                   : (cls.status === ClassroomPeriodStatus.WRONG_CLASS
-                      ? 'bg-amber-950/20 border-amber-800/40 hover:border-amber-700'
-                      : 'bg-slate-900 border-slate-800 hover:border-slate-700')
+                      ? 'bg-amber-50/60 border-amber-200 hover:border-amber-300'
+                      : 'bg-white border-slate-200 hover:border-slate-300')
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-white text-sm">{cls.name}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                <span className="font-bold text-slate-900 text-sm">{cls.name}</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                   cls.status === ClassroomPeriodStatus.FULL
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border border-rose-200'
                 }`}>
                   {cls.status === ClassroomPeriodStatus.FULL ? t('classroomMatrix.full') : t('classroomMatrix.missing')}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mb-2">{cls.scheduledTeacher}</p>
-              <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-800/80">
+              <p className="text-xs text-slate-500 mb-2">{cls.scheduledTeacher}</p>
+              <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
                 <span className="text-slate-400">{cls.building} - Tầng {cls.floor}</span>
-                <span className="font-bold text-emerald-400">{cls.totalPresent} / {cls.totalEnrolled}</span>
+                <span className={`font-bold ${
+                  cls.status === ClassroomPeriodStatus.FULL ? 'text-emerald-600' : 'text-rose-600'
+                }`}>
+                  {cls.totalPresent} / {cls.totalEnrolled}
+                </span>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="py-12 text-center text-slate-500">{t('common.noData')}</div>
+        <div className="py-12 text-center text-slate-400">{t('common.noData')}</div>
       )}
     </div>
   );

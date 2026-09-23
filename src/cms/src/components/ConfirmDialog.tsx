@@ -44,16 +44,16 @@ export default function ConfirmDialog({
           )}
         </div>
         <div className="flex-1">
-          <p className="text-sm text-slate-300 leading-relaxed">{message}</p>
+          <p className="text-sm text-slate-600 leading-relaxed">{message}</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
+      <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
         <button
           type="button"
           onClick={onClose}
           disabled={isLoading}
-          className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs border border-slate-700 transition-colors"
+          className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs border border-slate-200 shadow-xs transition-colors"
         >
           {cancelText}
         </button>
@@ -61,10 +61,10 @@ export default function ConfirmDialog({
           type="button"
           onClick={onConfirm}
           disabled={isLoading}
-          className={`px-4 py-2 rounded-lg font-medium text-xs transition-colors shadow-lg flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl font-medium text-xs transition-colors shadow-sm flex items-center gap-2 ${
             isDangerous
-              ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20'
-              : 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-600/20'
+              ? 'bg-rose-600 hover:bg-rose-500 text-white'
+              : 'bg-sky-600 hover:bg-sky-500 text-white'
           }`}
         >
           {isLoading && (

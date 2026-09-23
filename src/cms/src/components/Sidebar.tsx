@@ -63,15 +63,15 @@ export default function Sidebar() {
   const { logout } = useAuth();
 
   return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 min-h-screen">
-      <div className="h-16 flex items-center px-5 border-b border-slate-800/80 bg-slate-900/50">
+    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 h-screen select-none z-20 shadow-xs">
+      <div className="h-16 flex items-center px-5 border-b border-slate-200 bg-white flex-shrink-0">
         <MSchoolLogo size={34} showText={true} />
       </div>
 
-      <nav className="flex-1 px-3.5 py-4 space-y-6 overflow-y-auto">
+      <nav className="flex-1 px-3.5 py-4 space-y-6 overflow-y-auto min-h-0">
         {menuGroups.map((group, gIdx) => (
           <div key={gIdx} className="space-y-1">
-            <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {t(group.titleKey)}
             </div>
             <div className="space-y-1">
@@ -82,13 +82,13 @@ export default function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
                       isActive
-                        ? 'bg-sky-600/20 text-sky-400 border border-sky-500/30 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                        ? 'bg-sky-50 text-sky-700 border border-sky-200/80 shadow-xs font-semibold'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-sky-400' : 'text-slate-400'}`} />
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-sky-600' : 'text-slate-400'}`} />
                     <span>{t(item.key)}</span>
                   </Link>
                 );
@@ -98,19 +98,19 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Nút Đăng xuất bám đáy Sidebar thay cho icon và mã ngôn ngữ */}
-      <div className="p-3 border-t border-slate-800/80 bg-slate-900/80">
+      {/* Nút Đăng xuất cố định bám đáy Sidebar trong viewport, không bị trôi theo content */}
+      <div className="p-3 border-t border-slate-200 bg-slate-50/90 flex-shrink-0">
         <button
           type="button"
           onClick={logout}
-          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-slate-800/60 hover:border-rose-500/30 transition-all duration-200 group"
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition-all duration-200 group bg-white shadow-xs"
           title={t('common.logout')}
         >
           <div className="flex items-center gap-2.5">
-            <LogOut className="w-4 h-4 text-slate-400 group-hover:text-rose-400 transition-colors" />
+            <LogOut className="w-4 h-4 text-slate-400 group-hover:text-rose-600 transition-colors" />
             <span>{t('common.logout')}</span>
           </div>
-          <span className="text-[10px] bg-slate-800/80 text-slate-500 px-2 py-0.5 rounded font-mono group-hover:bg-rose-500/20 group-hover:text-rose-300 transition-colors">
+          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono group-hover:bg-rose-100 group-hover:text-rose-700 transition-colors">
             v1.2
           </span>
         </button>

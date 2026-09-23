@@ -175,21 +175,21 @@ export default function CamerasPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">{t('cameras.title')}</h2>
-          <p className="text-sm text-slate-400">{t('cameras.subtitle')}</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">{t('cameras.title')}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t('cameras.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={loadCameras}
             disabled={isLoading}
-            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs transition-colors"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-slate-500' : 'text-slate-500'}`} />
             {t('common.refresh')}
           </button>
           <button
             onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-sm transition-colors shadow-lg shadow-sky-600/20"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
             <span>{t('cameras.addCamera')}</span>
@@ -198,8 +198,8 @@ export default function CamerasPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
           <span>{error}</span>
         </div>
       )}
@@ -208,32 +208,32 @@ export default function CamerasPage() {
         {/* Danh sách camera */}
         <div className="space-y-3">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               {t('cameras.deviceList')} ({cameras.length})
             </h3>
           </div>
 
           {isLoading ? (
-            <div className="py-8 text-center text-slate-500">{t('common.loading')}</div>
+            <div className="py-8 text-center text-slate-400">{t('common.loading')}</div>
           ) : cameras.length > 0 ? (
             cameras.map((cam) => (
               <div
                 key={cam.id}
                 onClick={() => setSelectedCam(cam)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                className={`p-4 rounded-2xl border cursor-pointer transition-all shadow-xs ${
                   selectedCam?.id === cam.id
-                    ? 'bg-slate-800/90 border-sky-500 shadow-md shadow-sky-950/30'
-                    : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                    ? 'bg-sky-50/70 border-sky-400 shadow-sm'
+                    : 'bg-white border-slate-200 hover:border-slate-300'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-white text-sm">{cam.name}</span>
+                  <span className="font-bold text-slate-900 text-sm">{cam.name}</span>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                         cam.status === CameraStatus.ONLINE
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-rose-50 text-rose-700 border border-rose-200'
                       }`}
                     >
                       {cam.status === CameraStatus.ONLINE ? t('cameras.online') : t('cameras.offline')}
@@ -241,23 +241,23 @@ export default function CamerasPage() {
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-400 font-mono mb-2 truncate">{cam.rtspUrl}</p>
+                <p className="text-xs text-slate-500 font-mono mb-2 truncate">{cam.rtspUrl}</p>
 
-                <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800">
+                <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
                   <span>
-                    {t('cameras.tripwireDir')}: <span className="text-sky-400 font-medium">{cam.tripwireDirection}</span>
+                    {t('cameras.tripwireDir')}: <span className="text-sky-700 font-semibold">{cam.tripwireDirection}</span>
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => handleOpenEdit(cam, e)}
-                      className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-700 transition-colors"
+                      className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors"
                       title="Sửa thông số"
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => handleDeleteCam(cam, e)}
-                      className="p-1 text-rose-400 hover:text-rose-300 rounded hover:bg-slate-700 transition-colors"
+                      className="p-1.5 text-rose-600 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors"
                       title="Xóa camera"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -267,30 +267,30 @@ export default function CamerasPage() {
               </div>
             ))
           ) : (
-            <div className="py-8 text-center text-slate-500">{t('common.noData')}</div>
+            <div className="py-8 text-center text-slate-400">{t('common.noData')}</div>
           )}
         </div>
 
         {/* Khung vẽ Canvas Spatial Tripwire */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col">
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-white text-sm flex items-center gap-2">
-              <Video className="w-4 h-4 text-sky-400" />
+            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <Video className="w-4 h-4 text-sky-600" />
               {t('cameras.canvasTitle')} - {selectedCam ? selectedCam.name : '--'}
             </h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleTestRtsp}
                 disabled={!selectedCam || isTestingRtsp}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs text-slate-700 border border-slate-200 shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
               >
-                <Play className={`w-3.5 h-3.5 ${isTestingRtsp ? 'animate-spin' : ''}`} />
+                <Play className={`w-3.5 h-3.5 ${isTestingRtsp ? 'animate-spin text-slate-500' : 'text-slate-500'}`} />
                 {isTestingRtsp ? 'Đang kiểm tra...' : 'Kiểm Tra RTSP'}
               </button>
             </div>
           </div>
 
-          <div className="flex-1 bg-slate-950 rounded-lg border border-slate-800 relative flex items-center justify-center min-h-[360px] overflow-hidden">
+          <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 relative flex items-center justify-center min-h-[360px] overflow-hidden">
             {/* Giả lập khung hình Camera và Vạch ảo Spatial Tripwire */}
             <div className="absolute inset-0 flex flex-col justify-between p-4 pointer-events-none">
               <div className="flex justify-between items-center text-xs font-mono text-emerald-400 bg-slate-900/80 px-3 py-1.5 rounded border border-emerald-500/30 w-fit">
@@ -324,8 +324,8 @@ export default function CamerasPage() {
       >
         <form onSubmit={handleSubmitCam} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Tên camera <span className="text-rose-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Tên camera <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -333,14 +333,14 @@ export default function CamerasPage() {
               value={camForm.name}
               onChange={(e) => setCamForm({ ...camForm, name: e.target.value })}
               placeholder="ví dụ: Camera Cổng Chính - Làn 1"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Địa chỉ IP <span className="text-rose-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Địa chỉ IP <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -348,25 +348,25 @@ export default function CamerasPage() {
                 value={camForm.ipAddress}
                 onChange={(e) => setCamForm({ ...camForm, ipAddress: e.target.value })}
                 placeholder="192.168.10.101"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-sky-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">FPS (Khung hình/giây)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">FPS (Khung hình/giây)</label>
               <input
                 type="number"
                 min="10"
                 max="60"
                 value={camForm.fps}
                 onChange={(e) => setCamForm({ ...camForm, fps: parseInt(e.target.value) || 25 })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-sky-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Đường dẫn luồng RTSP <span className="text-rose-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Đường dẫn luồng RTSP <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -374,28 +374,28 @@ export default function CamerasPage() {
               value={camForm.rtspUrl}
               onChange={(e) => setCamForm({ ...camForm, rtspUrl: e.target.value })}
               placeholder="rtsp://admin:Pass@2026@192.168.10.101:554/live/ch0"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Vị trí lắp đặt</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Vị trí lắp đặt</label>
             <input
               type="text"
               value={camForm.location}
               onChange={(e) => setCamForm({ ...camForm, location: e.target.value })}
               placeholder="Cổng trước, Hành lang tầng 1..."
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Chiều vạch ảo điểm danh</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Chiều vạch ảo điểm danh</label>
               <select
                 value={camForm.tripwireDirection}
                 onChange={(e) => setCamForm({ ...camForm, tripwireDirection: e.target.value as TripwireDirection })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               >
                 <option value={TripwireDirection.CHECK_IN}>Vào Trường (CHECK_IN)</option>
                 <option value={TripwireDirection.CHECK_OUT}>Ra Về (CHECK_OUT)</option>
@@ -403,11 +403,11 @@ export default function CamerasPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Trạng thái</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Trạng thái</label>
               <select
                 value={camForm.status}
                 onChange={(e) => setCamForm({ ...camForm, status: e.target.value as CameraStatus })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               >
                 <option value={CameraStatus.ONLINE}>Trực tuyến (ONLINE)</option>
                 <option value={CameraStatus.OFFLINE}>Ngoại tuyến (OFFLINE)</option>
@@ -415,17 +415,17 @@ export default function CamerasPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium"
+              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-lg shadow-sky-600/20"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-sm"
             >
               {editingCam ? 'Lưu thay đổi' : 'Thêm Camera'}
             </button>

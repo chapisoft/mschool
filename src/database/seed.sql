@@ -77,4 +77,53 @@ INSERT INTO audit_logs (tenant_id, user_name, action_code, entity_name, entity_i
 INSERT INTO webhook_subscriptions (name, target_url, secret_key, subscribed_events, is_active, status, last_delivery_status, last_delivery_at) VALUES
 ('VnEdu Cloud Sync', 'https://api.vnedu.vn/v1/webhook/attendance', 'sec_vnedu_live_9921', ARRAY['ATTENDANCE_CHECKIN', 'ATTENDANCE_CHECKOUT'], true, 'ACTIVE', '200 OK', CURRENT_TIMESTAMP - INTERVAL '5 minute'),
 ('SMAS Viettel School Connector', 'https://smas.edu.vn/api/integration/mschool', 'sec_smas_prod_8812', ARRAY['CLASSROOM_EVALUATED'], true, 'ACTIVE', '200 OK', CURRENT_TIMESTAMP - INTERVAL '15 minute'),
-('Hệ thống Quản lý Học đường SIS Nội Bộ', 'https://sis.school.edu.vn/webhook/stranger-alert', 'sec_sis_local_1102', ARRAY['STRANGER_DETECTED'], true, 'ACTIVE', '200 OK', CURRENT_TIMESTAMP - INTERVAL '10 minute');
+('Hệ thống Quản lý Học đường SIS Nội Bộ', 'https://sis.school.edu.vn/webhook/stranger-alert', 'sec_sis_local_1102', ARRAY['STRANGER_DETECTED'], true, 'ACTIVE', '200 OK', CURRENT_TIMESTAMP - INTERVAL '10 minute')
+ON CONFLICT DO NOTHING;
+
+-- 10. Danh mục vai trò và nhóm quyền hệ thống (System Roles)
+INSERT INTO system_roles (role_code, role_name, description, is_system) VALUES
+('ROLE_ADMIN', 'Quản Trị Viên', 'Toàn quyền cấu hình tham số, camera, người dùng và tích hợp hệ thống', true),
+('ROLE_SUPERVISOR', 'Ban Giám Hiệu', 'Giám sát sĩ số, theo dõi ma trận lớp học và báo cáo toàn diện', true),
+('ROLE_TEACHER', 'Giáo Viên', 'Quản lý lớp học, xác nhận Sổ đầu bài điện tử và theo dõi học sinh', true),
+('ROLE_SECURITY_GUARD', 'Nhân Viên Bảo Vệ', 'Trực bốt cổng trường, đón tiếp khách và xử lý cảnh báo người lạ', true)
+ON CONFLICT (role_code) DO NOTHING;
+
+-- 11. Quản trị người dùng hệ thống (System Users)
+INSERT INTO system_users (username, password_hash, full_name, email, phone, role_code, is_active) VALUES
+('admin', '$2a$10$7EqJtq98hPqEX7fNZaFWoO.8H5Z3m0mBwYh3P7z5W3D2tK2eK2g2m', 'Quản Trị Viên Hệ Thống', 'admin@mschool.vn', '0901234567', 'ROLE_ADMIN', true),
+('principal', '$2a$10$7EqJtq98hPqEX7fNZaFWoO.8H5Z3m0mBwYh3P7z5W3D2tK2eK2g2m', 'Thầy Nguyễn Văn Hiệu - Hiệu Trưởng', 'principal@mschool.vn', '0912345678', 'ROLE_SUPERVISOR', true),
+('gv_nam', '$2a$10$7EqJtq98hPqEX7fNZaFWoO.8H5Z3m0mBwYh3P7z5W3D2tK2eK2g2m', 'Thầy Nguyễn Hoàng Nam - GVCN 10A1', 'nam.nh@mschool.vn', '0987654321', 'ROLE_TEACHER', true),
+('guard_gate1', '$2a$10$7EqJtq98hPqEX7fNZaFWoO.8H5Z3m0mBwYh3P7z5W3D2tK2eK2g2m', 'Bác Trần Văn Quý - Trực Bốt Cổng 1', 'quy.tv@mschool.vn', '0933445566', 'ROLE_SECURITY_GUARD', true),
+('gv_hoa', '$2a$10$7EqJtq98hPqEX7fNZaFWoO.8H5Z3m0mBwYh3P7z5W3D2tK2eK2g2m', 'Nguyễn Thị Hoa', 'hoa.nt@mschool.vn', '0944556677', 'ROLE_TEACHER', true)
+ON CONFLICT (username) DO NOTHING;
+
+-- 12. Ma trận phân quyền theo vai trò (Role Permissions)
+INSERT INTO role_permissions (role_code, module_code, can_view, can_create, can_edit, can_delete, can_approve, can_export) VALUES
+('ROLE_ADMIN', 'ALL_MODULES', true, true, true, true, true, true)
+ON CONFLICT (role_code, module_code) DO NOTHING;
+
+-- 13. Tham số cấu hình hệ thống (System Parameters)
+INSERT INTO system_parameters (param_key, param_value, param_group, description) VALUES
+('AI_FIQA_MIN_SCORE', '0.85', 'AI', 'Điểm đánh giá chất lượng ảnh khuôn mặt tối thiểu để chấp nhận đăng ký'),
+('AI_SIMILARITY_THRESHOLD', '0.78', 'AI', 'Ngưỡng tương đồng cosine tối thiểu để xác thực danh tính khuôn mặt'),
+('GATE_COOLDOWN_SECONDS', '90', 'ATTENDANCE', 'Thời gian chống quét lặp tại cùng một cổng trường'),
+('MORNING_LATE_CUTOFF', '07:30', 'ATTENDANCE', 'Mốc thời gian bắt đầu tính đi muộn buổi sáng'),
+('AFTERNOON_DEPARTURE_START', '16:00', 'ATTENDANCE', 'Mốc thời gian bắt đầu cho phép học sinh quét ra về buổi chiều'),
+('NOTIF_ZNS_ENABLED', 'true', 'NOTIFICATION', 'Kích hoạt kênh gửi thông báo điểm danh qua Zalo ZNS'),
+('NOTIF_SMS_ENABLED', 'false', 'NOTIFICATION', 'Kích hoạt kênh gửi tin nhắn SMS Brandname dự phòng'),
+('NOTIF_APP_PUSH_ENABLED', 'true', 'NOTIFICATION', 'Kích hoạt kênh đẩy thông báo ứng dụng di động qua FCM'),
+('SNAPSHOT_RETENTION_DAYS', '90', 'STORAGE', 'Số ngày lưu trữ ảnh bằng chứng điểm danh trên MinIO S3'),
+('STRANGER_RETENTION_HOURS', '24', 'STORAGE', 'Số giờ lưu trữ ảnh và vết khuôn mặt người lạ trước khi dọn dẹp')
+ON CONFLICT (param_key) DO UPDATE SET param_value = EXCLUDED.param_value, description = EXCLUDED.description;
+
+-- 14. Danh mục cơ sở trường học (Master Campuses)
+INSERT INTO master_campuses (campus_code, campus_name, address, phone, is_active) VALUES
+('CAMPUS_01', 'Cơ sở 1 - Trụ sở chính', 'Số 1 Đường Thí Nghiệm, Quận Cầu Giấy, Hà Nội', '024-3999-8888', true),
+('CAMPUS_02', 'Cơ sở 2 - Khu liên cấp Thực nghiệm', 'Số 10 Đại lộ Khoa Học, Thành phố Thủ Đức, TP. Hồ Chí Minh', '024-3999-9999', true)
+ON CONFLICT (campus_code) DO NOTHING;
+
+-- 15. Danh mục ca học (Master Shifts)
+INSERT INTO master_shifts (shift_code, shift_name, start_time, end_time, is_active) VALUES
+('SHIFT_MORNING', 'Ca Sáng (Chính khóa)', '07:00', '11:30', true),
+('SHIFT_AFTERNOON', 'Ca Chiều (Bán trú & Tự chọn)', '13:30', '17:00', true)
+ON CONFLICT (shift_code) DO NOTHING;

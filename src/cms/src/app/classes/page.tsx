@@ -191,21 +191,21 @@ export default function ClassesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">{t('classes.title')}</h2>
-          <p className="text-sm text-slate-400">{t('classes.subtitle')}</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">{t('classes.title')}</h2>
+          <p className="text-sm text-slate-500">{t('classes.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={loadClasses}
             disabled={isLoading}
-            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             {t('common.refresh')}
           </button>
           <button
             onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-sm transition-colors shadow-lg shadow-sky-600/20"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-sm transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
             <span>{t('classes.addClass')}</span>
@@ -214,15 +214,15 @@ export default function ClassesPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Lọc theo khối lớp */}
-      <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 p-4 rounded-xl">
-        <label className="text-xs font-semibold text-slate-400">Lọc theo khối lớp:</label>
+      <div className="flex items-center gap-3 bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
+        <label className="text-xs font-semibold text-slate-600">Lọc theo khối lớp:</label>
         <div className="flex gap-2">
           {['', '10', '11', '12'].map((grade) => (
             <button
@@ -230,8 +230,8 @@ export default function ClassesPage() {
               onClick={() => setSelectedGrade(grade)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 selectedGrade === grade
-                  ? 'bg-sky-600 text-white shadow-sm'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                  ? 'bg-sky-600 text-white shadow-xs font-semibold'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
               {grade ? `Khối ${grade}` : 'Tất cả khối'}
@@ -241,52 +241,52 @@ export default function ClassesPage() {
       </div>
 
       {isLoading ? (
-        <div className="py-12 text-center text-slate-500">{t('common.loading')}</div>
+        <div className="py-12 text-center text-slate-500 font-medium">{t('common.loading')}</div>
       ) : classes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {classes.map((cls) => (
             <div
               key={cls.id}
-              className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all flex flex-col justify-between"
+              className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-slate-300 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="px-2.5 py-1 rounded bg-sky-950 text-sky-400 font-bold text-sm border border-sky-800">
+                  <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-bold text-sm border border-sky-200">
                     {cls.code}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-500">
                     {t('classes.room')} {cls.room} ({cls.building || 'Nhà A'})
                   </span>
                 </div>
-                <h3 className="font-semibold text-white text-base mb-1">{cls.name}</h3>
-                <p className="text-xs text-slate-400 mb-3">
+                <h3 className="font-bold text-slate-900 text-base mb-1">{cls.name}</h3>
+                <p className="text-xs text-slate-500 mb-3">
                   {t('classes.homeroomTeacher')}:{' '}
-                  <span className="text-slate-200 font-medium">{cls.homeroomTeacher || 'Chưa phân công'}</span>
+                  <span className="text-slate-800 font-medium">{cls.homeroomTeacher || 'Chưa phân công'}</span>
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-                <span className="flex items-center gap-1 font-mono">
-                  <Users className="w-3.5 h-3.5 text-slate-500" /> {cls.totalStudents} HS
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span className="flex items-center gap-1 font-mono font-medium">
+                  <Users className="w-3.5 h-3.5 text-slate-400" /> {cls.totalStudents} HS
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => handleOpenDetails(cls)}
-                    className="p-1 text-sky-400 hover:text-sky-300 rounded hover:bg-slate-800 transition-colors"
+                    className="p-1.5 text-sky-600 hover:text-sky-700 rounded-lg hover:bg-sky-50 transition-colors"
                     title="Xem chi tiết học sinh"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
                     onClick={(e) => handleOpenEdit(cls, e)}
-                    className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
+                    className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors"
                     title="Chỉnh sửa thông tin"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={(e) => handleDeleteClass(cls, e)}
-                    className="p-1 text-rose-400 hover:text-rose-300 rounded hover:bg-slate-800 transition-colors"
+                    className="p-1.5 text-rose-600 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors"
                     title="Xóa lớp học"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -297,7 +297,7 @@ export default function ClassesPage() {
           ))}
         </div>
       ) : (
-        <div className="py-12 text-center text-slate-500">{t('common.noData')}</div>
+        <div className="py-12 text-center text-slate-500 font-medium">{t('common.noData')}</div>
       )}
 
       {/* Modal Thêm / Sửa Lớp */}
@@ -310,8 +310,8 @@ export default function ClassesPage() {
         <form onSubmit={handleSubmitClass} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Mã lớp <span className="text-rose-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Mã lớp <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -320,17 +320,17 @@ export default function ClassesPage() {
                 value={classForm.code}
                 onChange={(e) => setClassForm({ ...classForm, code: e.target.value.toUpperCase() })}
                 placeholder="10A1"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 uppercase font-mono focus:outline-none focus:border-sky-500 disabled:opacity-50"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 uppercase font-mono focus:outline-none focus:border-sky-500 disabled:opacity-50"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Khối lớp <span className="text-rose-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Khối lớp <span className="text-rose-500">*</span>
               </label>
               <select
                 value={classForm.gradeLevel}
                 onChange={(e) => setClassForm({ ...classForm, gradeLevel: parseInt(e.target.value) })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               >
                 <option value={10}>Khối 10</option>
                 <option value={11}>Khối 11</option>
@@ -340,8 +340,8 @@ export default function ClassesPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Tên lớp học <span className="text-rose-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Tên lớp học <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -349,66 +349,66 @@ export default function ClassesPage() {
               value={classForm.name}
               onChange={(e) => setClassForm({ ...classForm, name: e.target.value })}
               placeholder="Lớp 10 Chuyên Toán"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Giáo viên chủ nhiệm</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Giáo viên chủ nhiệm</label>
             <input
               type="text"
               value={classForm.homeroomTeacher}
               onChange={(e) => setClassForm({ ...classForm, homeroomTeacher: e.target.value })}
               placeholder="Thầy Nguyễn Hoàng Nam"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Phòng học</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Phòng học</label>
               <input
                 type="text"
                 value={classForm.room}
                 onChange={(e) => setClassForm({ ...classForm, room: e.target.value })}
                 placeholder="P.101"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Tòa nhà</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Tòa nhà</label>
               <input
                 type="text"
                 value={classForm.building}
                 onChange={(e) => setClassForm({ ...classForm, building: e.target.value })}
                 placeholder="Nhà A"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Sĩ số</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Sĩ số</label>
               <input
                 type="number"
                 min="1"
                 max="60"
                 value={classForm.totalStudents}
                 onChange={(e) => setClassForm({ ...classForm, totalStudents: parseInt(e.target.value) || 0 })}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-sky-500"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium"
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-lg shadow-sky-600/20"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-xs"
             >
               {editingClass ? 'Lưu thay đổi' : 'Thêm Lớp Học'}
             </button>
@@ -424,33 +424,33 @@ export default function ClassesPage() {
         maxWidth="2xl"
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3 p-4 bg-slate-950/60 border border-slate-800 rounded-xl text-xs">
+          <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs">
             <div>
-              <span className="text-slate-400">Giáo viên chủ nhiệm: </span>
-              <span className="font-bold text-white block mt-0.5">{detailClass?.homeroomTeacher || '--'}</span>
+              <span className="text-slate-500">Giáo viên chủ nhiệm: </span>
+              <span className="font-bold text-slate-900 block mt-0.5">{detailClass?.homeroomTeacher || '--'}</span>
             </div>
             <div>
-              <span className="text-slate-400">Phòng & Vị trí: </span>
-              <span className="font-bold text-white block mt-0.5">Phòng {detailClass?.room} ({detailClass?.building}, Tầng {detailClass?.floor})</span>
+              <span className="text-slate-500">Phòng & Vị trí: </span>
+              <span className="font-bold text-slate-900 block mt-0.5">Phòng {detailClass?.room} ({detailClass?.building}, Tầng {detailClass?.floor})</span>
             </div>
             <div>
-              <span className="text-slate-400">Sĩ số định biên: </span>
-              <span className="font-bold text-emerald-400 block mt-0.5">{detailClass?.totalStudents} Học sinh</span>
+              <span className="text-slate-500">Sĩ số định biên: </span>
+              <span className="font-bold text-emerald-600 block mt-0.5">{detailClass?.totalStudents} Học sinh</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wide flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-sky-400" />
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-sky-600" />
               Danh Sách Học Sinh Có Hồ Sơ Sinh Trắc
             </h4>
 
             {isLoadingStudents ? (
-              <div className="py-8 text-center text-slate-500 text-xs">Đang tải danh sách học sinh...</div>
+              <div className="py-8 text-center text-slate-500 text-xs font-medium">Đang tải danh sách học sinh...</div>
             ) : studentsInClass.length > 0 ? (
-              <div className="border border-slate-800 rounded-xl overflow-hidden max-h-[280px] overflow-y-auto">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-800/80 sticky top-0 uppercase text-slate-400 border-b border-slate-800">
+              <div className="border border-slate-200 rounded-xl overflow-hidden max-h-[280px] overflow-y-auto">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50 sticky top-0 uppercase text-slate-500 border-b border-slate-200 font-semibold">
                     <tr>
                       <th className="py-2.5 px-3">Mã định danh</th>
                       <th className="py-2.5 px-3">Họ và tên</th>
@@ -458,16 +458,16 @@ export default function ClassesPage() {
                       <th className="py-2.5 px-3 text-right">Trạng thái</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800">
+                  <tbody className="divide-y divide-slate-100">
                     {studentsInClass.map((st) => (
-                      <tr key={st.id} className="hover:bg-slate-800/40">
-                        <td className="py-2.5 px-3 font-mono text-sky-400 font-bold">{st.identityCode}</td>
-                        <td className="py-2.5 px-3 text-white font-medium">{st.fullName}</td>
-                        <td className="py-2.5 px-3 font-mono text-emerald-400">
+                      <tr key={st.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 px-3 font-mono text-sky-600 font-bold">{st.identityCode}</td>
+                        <td className="py-2.5 px-3 text-slate-900 font-medium">{st.fullName}</td>
+                        <td className="py-2.5 px-3 font-mono text-emerald-600 font-bold">
                           {Math.round((st.qualityScore || 0.9) * 100)}%
                         </td>
                         <td className="py-2.5 px-3 text-right">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             HOẠT ĐỘNG
                           </span>
                         </td>
@@ -477,16 +477,16 @@ export default function ClassesPage() {
                 </table>
               </div>
             ) : (
-              <div className="py-8 text-center text-slate-500 text-xs bg-slate-950/40 rounded-xl border border-slate-800">
+              <div className="py-8 text-center text-slate-500 text-xs bg-slate-50 rounded-xl border border-slate-200">
                 Chưa có dữ liệu khuôn mặt đăng ký cho lớp này
               </div>
             )}
           </div>
 
-          <div className="flex justify-end pt-3 border-t border-slate-800">
+          <div className="flex justify-end pt-3 border-t border-slate-200">
             <button
               onClick={() => setDetailModalOpen(false)}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium"
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200"
             >
               Đóng
             </button>

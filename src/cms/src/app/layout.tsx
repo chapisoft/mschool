@@ -21,11 +21,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi" className="dark">
+    <html lang="vi" className="light">
       <head>
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
       </head>
-      <body className="bg-slate-950 text-slate-100 min-h-screen antialiased">
+      <body className="bg-slate-50 text-slate-800 min-h-screen antialiased selection:bg-sky-500/20 selection:text-sky-900">
         <LanguageProvider>
           <AuthProvider>
             <ToastProvider>

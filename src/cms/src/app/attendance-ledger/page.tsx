@@ -99,21 +99,21 @@ export default function AttendanceLedgerPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">{t('attendanceLedger.title')}</h2>
-          <p className="text-sm text-slate-400">{t('attendanceLedger.subtitle')}</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">{t('attendanceLedger.title')}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t('attendanceLedger.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={loadLedgerData}
             disabled={isLoading}
-            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs transition-colors"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-slate-500' : 'text-slate-500'}`} />
             {t('common.refresh')}
           </button>
           <button
             onClick={handleExportExcel}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-colors shadow-lg shadow-emerald-600/20"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition-colors shadow-xs"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>{t('attendanceLedger.exportExcel')}</span>
@@ -122,20 +122,20 @@ export default function AttendanceLedgerPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Bộ lọc lớp và ngày */}
-      <div className="flex flex-wrap items-center gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl">
+      <div className="flex flex-wrap items-center gap-4 bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
         <div>
-          <label className="text-xs text-slate-400 block mb-1">{t('attendanceLedger.selectClass')}</label>
+          <label className="text-xs font-semibold text-slate-600 block mb-1">{t('attendanceLedger.selectClass')}</label>
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200"
+            className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
           >
             {classList.map((cls) => (
               <option key={cls.id} value={cls.id}>
@@ -146,12 +146,12 @@ export default function AttendanceLedgerPage() {
         </div>
 
         <div>
-          <label className="text-xs text-slate-400 block mb-1">{t('attendanceLedger.selectDate')}</label>
+          <label className="text-xs font-semibold text-slate-600 block mb-1">{t('attendanceLedger.selectDate')}</label>
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200"
+            className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
           />
         </div>
       </div>
@@ -159,33 +159,33 @@ export default function AttendanceLedgerPage() {
       {/* Danh sách các tiết học */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="py-12 text-center text-slate-500">{t('common.loading')}</div>
+          <div className="py-12 text-center text-slate-400">{t('common.loading')}</div>
         ) : records.length > 0 ? (
           records.map((r) => (
-            <div key={r.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-all">
+            <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-slate-300 transition-all">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-lg bg-sky-600/20 text-sky-400 border border-sky-500/30 flex items-center justify-center font-bold text-sm">
+                  <span className="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center font-bold text-sm">
                     {r.periodNumber}
                   </span>
                   <div>
-                    <h3 className="font-semibold text-white text-base">Tiết {r.periodNumber} - Lớp {r.classId}</h3>
-                    <p className="text-xs text-slate-400">{t('attendanceLedger.teacher')}: {r.actualTeacherCode}</p>
+                    <h3 className="font-bold text-slate-900 text-base">Tiết {r.periodNumber} - Lớp {r.classId}</h3>
+                    <p className="text-xs text-slate-500">{t('attendanceLedger.teacher')}: {r.actualTeacherCode}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className={`px-2.5 py-1 rounded text-xs font-bold ${
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                     r.isConfirmedByTeacher
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
                   }`}>
                     {r.isConfirmedByTeacher ? t('attendanceLedger.confirmed') : t('attendanceLedger.unconfirmed')}
                   </span>
                   {!r.isConfirmedByTeacher && (
                     <button
                       onClick={() => handleConfirm(r.id)}
-                      className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs transition-colors flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs transition-colors flex items-center gap-1.5 shadow-xs"
                     >
                       <Check className="w-3.5 h-3.5" />
                       {t('attendanceLedger.confirmBtn')}
@@ -194,14 +194,14 @@ export default function AttendanceLedgerPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-3 border-t border-slate-800">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-3 border-t border-slate-100">
                 <div>
-                  <span className="text-slate-400">{t('attendanceLedger.presentEnrolled')}: </span>
-                  <span className="font-bold text-emerald-400">{r.totalStudentsPresent} / {r.totalStudentsEnrolled}</span>
+                  <span className="text-slate-500">{t('attendanceLedger.presentEnrolled')}: </span>
+                  <span className="font-bold text-emerald-600">{r.totalStudentsPresent} / {r.totalStudentsEnrolled}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400">{t('attendanceLedger.absentList')}: </span>
-                  <span className="font-mono text-rose-400">
+                  <span className="text-slate-500">{t('attendanceLedger.absentList')}: </span>
+                  <span className="font-mono font-medium text-rose-600">
                     {r.absentStudentCodes && r.absentStudentCodes.length > 0 ? r.absentStudentCodes.join(', ') : t('attendanceLedger.none')}
                   </span>
                   {r.absentStudentCodes && r.absentStudentCodes.length > 0 && (
@@ -210,15 +210,15 @@ export default function AttendanceLedgerPage() {
                         setOverrideTarget({ id: r.id, name: t('attendanceLedger.absentStudent'), code: r.absentStudentCodes[0], status: AttendanceStatus.ABSENT });
                         setIsOverrideOpen(true);
                       }}
-                      className="ml-2 text-sky-400 hover:underline"
+                      className="ml-2 text-sky-600 hover:underline font-semibold"
                     >
                       {t('attendanceLedger.overrideBtn')}
                     </button>
                   )}
                 </div>
                 <div>
-                  <span className="text-slate-400">{t('attendanceLedger.wrongClassList')}: </span>
-                  <span className="font-mono text-amber-400">
+                  <span className="text-slate-500">{t('attendanceLedger.wrongClassList')}: </span>
+                  <span className="font-mono font-medium text-amber-600">
                     {r.wrongClassStudentCodes && r.wrongClassStudentCodes.length > 0 ? r.wrongClassStudentCodes.join(', ') : t('attendanceLedger.none')}
                   </span>
                 </div>
@@ -226,7 +226,7 @@ export default function AttendanceLedgerPage() {
             </div>
           ))
         ) : (
-          <div className="py-12 text-center text-slate-500">{t('common.noData')}</div>
+          <div className="py-12 text-center text-slate-400">{t('common.noData')}</div>
         )}
       </div>
 
