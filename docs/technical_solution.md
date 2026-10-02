@@ -79,7 +79,7 @@ flowchart LR
 
 | STT | Dịch Vụ / Ứng Dụng | Nền tảng & Môi trường | Chức Năng Phân Rã Chi Tiết | Giao thức & Dữ liệu I/O | Kế thừa Codebase |
 | :---: | :--- | :--- | :--- | :--- | :---: |
-| **1** | **Ingestion Worker**<br/>`camera-worker` | Python 3.11, OpenCV, GStreamer, ByteTrack<br/>*Daemon Host Network* | • Tiếp nhận luồng RTSP Full HD H.264/H.265 (buffer = 1 frame).<br/>• Bám vết ByteTrack đa đối tượng, cấp phát `track_id` duy nhất.<br/>• Vạch ảo Spatial Tripwire 2 chiều xác định hướng Vào / Ra.<br/>• Lọc Best Frame eDifFIQA (độ nét, mở mắt, góc nhìn).<br/>• Đẩy ảnh sang AI và đánh dấu `sent = true` khóa track. | **Input:** RTSP (Port 554)<br/>**Output:** gRPC / REST sang `base-ai` | **40%**<br/>*(Kế thừa ByteTrack từ `base-ai`)* |
+| **1** | **Camera Worker**<br/>`camera-worker` | Python 3.11, OpenCV, ONNX Runtime, RTMO-s, ByteTrack, FastAPI<br/>*Daemon Host Network* | • Tiếp nhận đa luồng RTSP Full HD H.264/H.265 (buffer = 1 frame, ~30 FPS).<br/>• Suy luận One-stage RTMO-s bóc tách đồng thời BBox và 17 khớp xương.<br/>• Bám vết ByteTrack 2 tầng IoU, cấp phát `track_id` và cửa sổ động học.<br/>• Giám thị số (ngó bài bạn, nghiêng người, tay giấu ngăn bàn, chuyền giấy).<br/>• Giám sát trật tự (rời chỗ, xoay người, ngủ gật) & An toàn (khử rung té ngã, xô xát).<br/>• Máy chủ FastAPI phát luồng MJPEG kèm khung xương trực tiếp lên Web CMS.<br/>• Hàng đợi bất đồng bộ đẩy sự kiện điểm danh và cảnh báo về Backend. | **Input:** RTSP (Port 554)<br/>**Output:** MJPEG Stream (8090), JSON Event sang `base-be` | **85%**<br/>*(Kế thừa & Nâng cấp toàn diện)* |
 | **2** | **Bộ Máy AI**<br/>`base-ai` | FastAPI, PyTorch, ONNX Runtime, CUDA 12<br/>*Docker (GPU RTX 3060)* | • Bóc tách 40 khuôn mặt / ảnh bằng SCRFD ONNX (25ms).<br/>• Trích xuất vector 512D bằng ArcFace ResNet50 (15ms).<br/>• Kiểm định chất lượng ảnh khuôn mặt eDifFIQA.<br/>• Chống giả mạo ảnh in và màn hình MiniFASNet (18ms).<br/>• Phân tách không gian ROI: Bục giảng vs Dãy bàn học.<br/>• API suy luận: `/face/extract`, `/face/classroom-detect`. | **Input:** Base64 / Multipart<br/>**Output:** JSON Vector 512D & ROI | **90%**<br/>*(Kế thừa trọn vẹn `base-ai`)* |
 | **3** | **Đối Soát RAM**<br/>`base-sdk-edge` | C++17, Python C-Extension, OpenBLAS<br/>*In-Memory Library nhúng trong AI* | • Phân vùng `PERMANENT_INDEX` (2.000–5.000 vectors).<br/>• So khớp tích vô hướng Cosine BLAS 1:N trong RAM (0.25ms).<br/>• Phân vùng `VISITOR_DYNAMIC_INDEX` kèm metadata TTL.<br/>• Tiến trình dọn dẹp (auto-eviction) xóa vector hết hạn mỗi 5p.<br/>• Đối soát 3 tầng: Thành viên → Khách hợp lệ → Người lạ. | **Input:** Vector 512D<br/>**Output:** `identity_code`, `cosine_score` | **85%**<br/>*(Kế thừa `base-sdk-edge`)* |
 | **4** | **Backend Nghiệp Vụ**<br/>`base-be` | Java 21, Spring Boot 3.3, Quartz<br/>*Docker (Port 8080)* | • Quản lý cửa sổ Cooldown 90s trên Redis triệt tiêu trùng lặp.<br/>• `DailySessionStateMachine`: Chốt Giờ Đến/Về, lọc ra ngoài < 5p.<br/>• Quartz Scheduler điều phối chụp 3 ảnh tại 50 lớp đầu tiết.<br/>• Đối soát danh sách lớp, phát hiện vắng mặt, ngồi nhầm lớp.<br/>• Quản lý CRUD Khách/Phụ huynh, cấp mã TTL mở làn.<br/>• Hàng đợi Outbox & Đẩy thông báo FCM về Mobile App < 2s.<br/>• Bảo mật sinh trắc học AES-256 và phân quyền RBAC. | **Input:** REST / Event<br/>**Output:** PostgreSQL, Redis, FCM, WS | **80%**<br/>*(Kế thừa `base-be/modules`)* |
@@ -146,14 +146,17 @@ flowchart LR
 
 ---
 
-### 4.1. Ingestion Worker (`camera-worker`)
-* **Mục đích:** Chạy ngầm thu nhận RTSP camera cổng, bám vết, phân loại chiều và chọn 1 ảnh đẹp nhất gửi AI.
+### 4.1. Tiến trình Biên Camera Worker (`camera-worker`)
+* **Mục đích:** Vận hành thu nhận đa luồng RTSP (Buffer = 1), tích hợp suy luận One-stage RTMO-s, bám vết đa đối tượng ByteTrack, phân tích hành vi học đường và phát luồng video MJPEG kèm khung xương trực tiếp lên trình duyệt Web CMS.
 * **Thành phần chức năng:**
-  1. `RTSPStreamIngestion`: Giải mã H.264/H.265 qua GStreamer, duy trì `buffer = 1` triệt tiêu trễ tích lũy.
-  2. `ByteTrackTracker`: Theo dõi đa đối tượng liên tục, cấp phát `track_id` duy nhất.
-  3. `SpatialTripwire`: Đo biến thiên tọa độ trọng tâm (X, Y) cắt vạch ảo xác định chiều **Vào (IN)** hay **Ra (OUT)**.
-  4. `eDifFIQAEvaluator`: Đánh giá độ nét, độ mở mắt, góc nghiêng; chọn ảnh điểm cao nhất khi > 0.85 hoặc sau 0.8s.
-  5. `DispatcherClient`: Gửi Best Frame sang AI, đánh dấu `sent = true` khóa track và hủy các frame sau.
+  1. `RTSPStreamIngestion`: Giải mã H.264/H.265 độc lập, duy trì `buffer = 1` triệt tiêu hoàn toàn trễ tích lũy, đạt tốc độ ~30 FPS.
+  2. `RTMOPoseEngine`: Mô hình Single-pass bóc tách đồng thời hộp bao Bounding Box và 17 khớp xương chuẩn COCO cho toàn bộ người trong khung hình qua ONNX Runtime (12–18ms).
+  3. `ByteTrackTracker`: Theo dõi đa đối tượng liên tục với ma trận IoU 2 vòng, duy trì `track_id` ổn định và cửa sổ trượt động học 30–45 khung hình.
+  4. `SpatialTripwire`: Đo biến thiên tọa độ trọng tâm (X, Y) cắt vạch ảo xác định chiều **Vào (IN)** hay **Ra (OUT)** tại cổng trường.
+  5. `BehaviorAnalysisEngine`: Tự động nhận diện 4 nhóm nghiệp vụ học đường: Giám thị số phòng thi (quay đầu ngó bài > 40°, nghiêng người > 30°, tay giấu ngăn bàn > 5s), Giám sát trật tự (rời chỗ, xoay người nói chuyện, ngủ gật), An toàn học đường (khử rung té ngã 5 pha, xô xát ẩu đả).
+  6. `FastAPIMJPEGStreamer`: Máy chủ phát luồng video trực tiếp dạng MJPEG có vẽ đè khung xương (Visual Overlay), hộp bao và nhãn màu trực tiếp lên trình duyệt Web CMS với độ trễ dưới 200ms.
+  7. `AsynchronousDispatcher`: Hàng đợi Thread-safe Dispatcher phát tán sự kiện điểm danh và cảnh báo JSON thời gian thực về mschool-backend mà không làm nghẽn vòng lặp camera.
+
 
 ---
 

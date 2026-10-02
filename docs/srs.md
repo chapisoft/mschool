@@ -872,76 +872,127 @@ sequenceDiagram
 
 ---
 
-#### 3.1. UC-09: Quản trị Thiết bị Camera IP và Thiết lập Tọa độ Vạch ảo Tripwire
+#### 3.1. UC-09: Quản trị Thiết bị Camera IP, Tự Động Dò Quét Mạng (Auto-Discovery) và Thiết Lập Vạch Ảo Tripwire
 
 ##### 1. Thông tin chung chức năng
-* **Mục đích chức năng:** Cho phép Quản trị viên kỹ thuật cấu hình danh mục thiết bị Camera IP lắp đặt tại cổng trường và 50 phòng học; quản lý thông số kết nối (địa chỉ IP tĩnh, cổng RTSP, tài khoản kết nối đã mã hóa an toàn); thiết lập giao diện vẽ tọa độ vạch ranh giới ảo Tripwire hai chiều trực tiếp trên khung hình video để phục vụ thuật toán xác định hướng di chuyển Vào / Ra.
-* **Điều kiện tiên quyết / Trạng thái áp dụng:** Người dùng có vai trò Quản trị viên hệ thống; camera đã được cấp nguồn PoE và gán địa chỉ IP trong dải VLAN 20.
-* **Đường dẫn thao tác:** Web CMS → "Quản trị Thiết bị" → "Danh mục Camera IP" → Chọn camera → Nhấn [[Cấu hình vạch ảo Tripwire]].
-* **Quy định ghi nhật ký hệ thống (Audit Log):** Ghi nhận `action = 'CAMERA_CONFIG_UPDATE'`, `camera_id`, `ip_address`, `tripwire_coordinates`, `updated_by`, `timestamp = NOW()`.
+* **Mục đích chức năng:** 
+  1. Cho phép Quản trị viên kỹ thuật cấu hình danh mục thiết bị Camera IP lắp đặt tại cổng trường và 50 phòng học; quản lý thông số kết nối (địa chỉ IP tĩnh, cổng RTSP, tài khoản kết nối đã mã hóa an toàn); thiết lập giao diện vẽ tọa độ vạch ranh giới ảo Tripwire hai chiều trực tiếp trên khung hình video để phục vụ thuật toán xác định hướng di chuyển Vào / Ra.
+  2. Cung cấp bộ công cụ **Tự động dò tìm Camera IP trong mạng nội bộ (Network Auto-Discovery)**: phát đa hướng UDP Multicast gói tin thăm dò theo chuẩn ONVIF WS-Discovery và quét cổng RTSP dải VLAN trường học, tự động phát hiện mọi camera hiện trường (Hikvision, Dahua, Uniview, Tiandy...). Đối chiếu thời gian thực với cơ sở dữ liệu để phân loại rạch ròi camera đã quản lý và **camera chưa khai báo trong hệ thống**, hỗ trợ tiếp nhận nhanh 1 chạm (1-Click Zero-Touch Onboarding) và cảnh báo camera lạ (Rogue Camera Detection).
+* **Điều kiện tiên quyết / Trạng thái áp dụng:** Người dùng có vai trò Quản trị viên hệ thống (System Admin); camera kết nối vật lý vào hạ tầng switch mạng dải VLAN 20.
+* **Đường dẫn thao tác:** Web CMS → "Quản trị Thiết bị" → "Danh mục Camera IP" → Nhấn [[Tự Dò Camera Mạng]] hoặc chọn camera nhấn [[Cấu hình vạch ảo Tripwire]].
+* **Quy định ghi nhật ký hệ thống (Audit Log):** 
+  * Cập nhật vạch ảo: `action = 'CAMERA_CONFIG_UPDATE'`, `camera_id`, `ip_address`, `tripwire_coordinates`, `updated_by`, `timestamp = NOW()`.
+  * Tiếp nhận camera chưa khai báo: `action = 'CAMERA_AUTO_DISCOVER_ONBOARD'`, `camera_id`, `ip_address`, `vendor`, `location`, `created_by`, `timestamp = NOW()`.
 * **Quy định phân quyền:** Quản trị viên hệ thống (System Admin).
 
 ##### 2. Màn hình
-* **Màn hình Danh sách Camera IP (Default state):** Bảng danh sách thiết bị hiển thị: Tên camera, Vị trí lắp đặt (Cổng 1, Phòng 10A1), Địa chỉ IP, Trạng thái kết nối (Badge xanh "Đang hoạt động" / Badge đỏ "Mất tín hiệu"), Tốc độ khung hình (FPS) và Cột thao tác.
+* **Màn hình Danh sách Camera IP (Default state):** Bảng danh sách thiết bị hiển thị: Tên camera, Vị trí lắp đặt (Cổng 1, Phòng 10A1), Địa chỉ IP, Trạng thái kết nối (Badge xanh "Đang hoạt động" / Badge đỏ "Mất tín hiệu"), Tốc độ khung hình (FPS), Nút tác vụ [[Tự Dò Camera Mạng]], [[Thêm Camera IP]].
+* **Màn hình Tự Động Dò Quét Camera IP Trong Mạng (Discovery Modal):** 
+  * Thanh công cụ quét: Ô nhập dải mạng Subnet/VLAN (mặc định `192.168.10.0/24`), nút [[Bắt Đầu Quét Mạng]].
+  * Trạng thái quét (Scanning state): Hiệu ứng Radar xoay, thanh tiến trình mô phỏng gửi gói tin ONVIF WS-Discovery (UDP 3702) và thăm dò cổng RTSP (554).
+  * Thanh tóm tắt kết quả: Tổng số thiết bị phát hiện, Thẻ lọc [[Chưa Khai Báo (Mới phát hiện)]] (Badge cam nổi bật), [[Đã Quản Lý]] (Badge xám).
+  * Danh thiếp camera tìm thấy: Hiển thị Vendor Logo (Hikvision, Dahua, Uniview, Tiandy), Model, Địa chỉ IP, MAC OUI, Độ phân giải, FPS, Chuỗi RTSP URL chuẩn hóa, nút hành động [[Khai Báo Nhanh]].
+* **Hộp thoại Tiếp nhận Camera Chưa Khai Báo (Quick Onboard Modal):** Form trích xuất sẵn IP, chuỗi RTSP, tốc độ FPS; cho phép quản trị viên nhập tên gợi nhớ, chọn vị trí phân bổ (ví dụ: "Phòng học 11B2") và hướng vạch ảo, nút [[Tiếp Nhận Vào Hệ Thống]].
 * **Màn hình Cấu hình Vạch ảo Không gian (Interactive Canvas Modal):** Hiển thị khung hình video trực tiếp từ camera, thanh công cụ vẽ: [[Vẽ vạch ranh giới]], [[Đổi chiều mũi tên Vào/Ra]], [[Thiết lập vùng loại trừ]], nút [[Lưu cấu hình]].
-* **Thông báo phản hồi (Toast notification):** Toast xanh: "Cập nhật tọa độ vạch ảo Tripwire thành công. Cấu hình đã được đồng bộ tức thời sang tiến trình Ingestion Worker".
+* **Thông báo phản hồi (Toast notification):** 
+  * Dò quét: "Dò quét mạng thành công: Tìm thấy X thiết bị (Y camera chưa khai báo)".
+  * Tiếp nhận: Toast xanh: "Tiếp nhận camera [Tên_Camera] (IP) vào hệ thống thành công tại [Vị_Trí]".
 
 ##### 3. Mô tả chi tiết các thành phần
 
 | STT | Tên | Kiểu dữ liệu [Độ dài dữ liệu] | Input/Output | Giá trị khởi tạo | Mô tả (Mapping CSDL & Ràng buộc) |
 | :---: | :--- | :--- | :---: | :---: | :--- |
-| 1 | Tên Camera IP * | Textbox(100) | INPUT | Để trống | • Đặt tên gợi nhớ: "Camera Cổng Chính 01", "Camera Lớp 12A1".<br/>• Lưu vào `camera_devices.device_name`. |
-| 2 | Địa chỉ IP tĩnh * | Textbox(20) | INPUT | "10.60.20.x" | • Định dạng IPv4 chuẩn trong dải VLAN Camera IP.<br/>• Lưu vào `camera_devices.ip_address`. |
-| 3 | Đường dẫn RTSP * | Textbox(255) | INPUT | Để trống | • Chuỗi kết nối luồng RTSP (ví dụ: `rtsp://admin:pass@10.60.20.10:554/h264`). |
-| 4 | Phân loại vị trí * | Dropdown | INPUT | "CỔNG TRƯỜNG" | • Giá trị: "CỔNG TRƯỜNG", "LỚP HỌC", "NHÀ XE", "HÀNH LANG". |
-| 5 | Tọa độ Vạch ảo (X1, Y1) | Number Pair | INPUT | (0, 0) | • Tọa độ điểm bắt đầu của vạch ranh giới trên khung hình camera. |
-| 6 | Tọa độ Vạch ảo (X2, Y2) | Number Pair | INPUT | (0, 0) | • Tọa độ điểm kết thúc của vạch ranh giới trên khung hình camera. |
-| 7 | Hướng quy định Vào (IN) | Angle / Vector | INPUT | 90° | • Hướng vector chỉ định đối tượng vượt vạch được tính là Vào trường. |
-| 8 | Nút Lưu cấu hình | Button | INPUT | N/A | • Lưu vào CSDL và phát thông điệp cập nhật qua Redis Pub/Sub. |
+| 1 | Dải Subnet dò quét * | Textbox(30) | INPUT | "192.168.10.0/24" | • Định dạng CIDR IPv4 dải VLAN camera.<br/>• Dùng cho tiến trình Auto-Discovery Engine. |
+| 2 | Nút Bắt đầu quét mạng | Button | INPUT | N/A | • Kích hoạt gửi gói tin ONVIF probe và quét cổng RTSP. |
+| 3 | Bộ lọc trạng thái dò quét | Segmented Buttons | INPUT | "CHƯA KHAI BÁO" | • Giá trị: "CHƯA KHAI BÁO", "ĐÃ QUẢN LÝ", "TẤT CẢ". |
+| 4 | Danh sách camera phát hiện | Device Cards List | OUTPUT | Danh sách rỗng | • Hiển thị: Vendor, Model, IP, MAC, Resolution, FPS, RTSP. |
+| 5 | Nút Khai báo nhanh | Button | INPUT | N/A | • Mở hộp thoại gán nhanh vị trí cho camera chưa khai báo. |
+| 6 | Tên Camera IP * | Textbox(100) | INPUT | Tự động gợi ý | • Đặt tên gợi nhớ: "Camera Cổng Chính 01", "Camera Lớp 12A1".<br/>• Lưu vào `device_cameras.name`. |
+| 7 | Địa chỉ IP * | Textbox(20) | INPUT | Trích xuất tự động | • Định dạng IPv4 chuẩn. Ràng buộc `UNIQUE` trong CSDL.<br/>• Lưu vào `device_cameras.ip_address`. |
+| 8 | Đường dẫn luồng RTSP * | Textbox(255) | INPUT | Chuẩn hóa theo Vendor | • Chuỗi kết nối RTSP sinh tự động theo hãng sản xuất.<br/>• Lưu vào `device_cameras.rtsp_url`. |
+| 9 | Vị trí lắp đặt * | Textbox(100) | INPUT | Để trống | • Phân bổ vào cổng trường hoặc phòng học cụ thể.<br/>• Lưu vào `device_cameras.location`. |
+| 10 | Tốc độ khung hình (FPS) | Number(2) | INPUT | 25 | • Tốc độ khung hình xử lý video (1 đến 60 FPS).<br/>• Lưu vào `device_cameras.fps`. |
+| 11 | Hướng vạch ảo Tripwire | Dropdown | INPUT | "CHECK_IN" | • Giá trị Enum: `CHECK_IN` (Vào), `CHECK_OUT` (Ra), `BIDIRECTIONAL`.<br/>• Lưu vào `device_cameras.tripwire_direction`. |
+| 12 | Tọa độ Vạch ảo (X1, Y1, X2, Y2) | Number Tuple | INPUT | (20%, 65%, 80%, 65%) | • Cặp tọa độ phân định ranh giới không gian trên khung video. |
 
 ##### 4. Luồng nghiệp vụ
-1. Quản trị viên truy cập Web CMS → "Quản trị Thiết bị" → "Danh mục Camera IP".
-2. Quản trị viên chọn camera cổng cần hiệu chỉnh → Nhấn button `[Cấu hình vạch ảo Tripwire]`.
-3. Hệ thống mở màn hình Canvas tương tác, trích xuất 1 khung hình chụp thực tế từ luồng RTSP của camera làm nền.
-4. Quản trị viên dùng chuột kéo thả một đoạn thẳng phân định ranh giới cổng trường, chọn hướng mũi tên chỉ chiều di chuyển Vào (Inbound) và Ra (Outbound).
-5. Quản trị viên nhấn button `[Lưu cấu hình]`:
+
+###### Luồng A: Tự động dò quét mạng và Tiếp nhận nhanh Camera chưa khai báo (Auto-Discovery & Quick Onboard)
+1. Quản trị viên truy cập Web CMS → "Quản trị Thiết bị" → "Danh mục Camera IP" → Nhấn nút `[Tự Dò Camera Mạng]`.
+2. Hệ thống mở màn hình Discovery Modal, tự động nạp dải subnet mặc định của VLAN trường học (`192.168.10.0/24`). Quản trị viên nhấn `[Bắt Đầu Quét Mạng]`.
+3. Trình duyệt gửi yêu cầu `POST /api/v1/cameras/discover` kèm tham số `subnet`.
+4. Tiến trình `CameraDiscoveryService` tại Backend thực hiện:
+   * Phát gói tin UDP Multicast tới `239.255.255.250:3702` (chuẩn ONVIF WS-Discovery) và đồng thời rà quét cổng RTSP (554).
+   * Thu thập phản hồi từ toàn bộ camera hiện trường, bóc tách MAC OUI để nhận diện Vendor (Hikvision, Dahua, Uniview, Tiandy...).
+   * Truy vấn bảng `device_cameras` trong CSDL để so khớp địa chỉ IP.
+   * `TH1 (IP đã tồn tại trong CSDL):` Gắn cờ `declared = true`, lưu vết vị trí hiện tại đã phân bổ.
+   * `TH2 (IP chưa tồn tại trong CSDL):` Gắn cờ `declared = false` (**Camera chưa khai báo**), tự sinh chuỗi RTSP URL chuẩn theo hãng và tên thiết bị gợi ý.
+5. Backend trả về danh sách thiết bị. Giao diện mặc định lọc nhóm **"Chưa Khai Báo (Mới phát hiện)"**.
+6. Quản trị viên nhấn `[Khai Báo Nhanh]` tại một camera chưa khai báo:
+   * Hệ thống hiển thị form điền sẵn toàn bộ thông số kỹ thuật (IP, RTSP, FPS).
+   * Quản trị viên chọn hoặc nhập vị trí phòng học cần phân bổ (ví dụ: *"Phòng học 11B2 - Tầng 2"*).
+   * Quản trị viên nhấn `[Tiếp Nhận Vào Hệ Thống]`.
+7. Trình duyệt gửi `POST /api/v1/cameras/quick-onboard`:
+   * Backend kiểm tra toàn vẹn dữ liệu: đảm bảo IP chưa bị đăng ký trùng lặp đồng thời (`concurrency safety`).
+   * Ghi bản ghi mới vào bảng `device_cameras` với trạng thái `status = 'ONLINE'`.
+   * Ghi vết kiểm toán bất biến vào `audit_logs` (`action = 'CAMERA_AUTO_DISCOVER_ONBOARD'`).
+   * Trả về phản hồi thành công, giao diện hiển thị toast xanh, tự động chuyển camera này sang nhóm "Đã Quản Lý" và cập nhật bảng camera chính.
+
+###### Luồng B: Thiết lập Tọa độ Vạch ảo Tripwire
+1. Quản trị viên chọn camera cổng cần hiệu chỉnh → Nhấn button `[Cấu hình vạch ảo Tripwire]`.
+2. Hệ thống mở màn hình Canvas tương tác, trích xuất 1 khung hình chụp thực tế từ luồng RTSP của camera làm nền.
+3. Quản trị viên dùng chuột kéo thả một đoạn thẳng phân định ranh giới cổng trường, chọn hướng mũi tên chỉ chiều di chuyển Vào (CHECK_IN) và Ra (CHECK_OUT).
+4. Quản trị viên nhấn button `[Lưu cấu hình]`:
    * Hệ thống kiểm tra tọa độ đoạn thẳng: đảm bảo độ dài vạch tối thiểu 100 pixel và nằm trọn trong khung hình video.
    * `TH1 (Tọa độ không hợp lệ):` Báo lỗi inline: *"Đoạn thẳng phân định quá ngắn hoặc nằm ngoài khung hình. Vui lòng vẽ lại"*.
    * `TH2 (Tọa độ hợp lệ):`
-     * Hệ thống lưu cặp tọa độ `(x1, y1), (x2, y2)` và vector chỉ hướng vào bảng `camera_devices`.
+     * Hệ thống lưu cặp tọa độ và hướng vào bảng `device_cameras`.
      * Cổng quản trị phát thông điệp nóng lên kênh Redis Pub/Sub (`mschool:config:camera`).
-     * Tiến trình `camera-worker` đang giám sát camera này tiếp nhận thông điệp, nạp lại tọa độ vạch ảo mới trong bộ nhớ RAM trong thời gian dưới 100ms mà không làm gián đoạn luồng video.
+     * Tiến trình `camera-worker` đang thu luồng tiếp nhận thông điệp, nạp lại tọa độ vạch ảo mới trong RAM trong thời gian dưới 100ms mà không làm gián đoạn luồng video.
      * Ghi nhật ký vào `audit_log`, hiển thị toast thông báo cập nhật thành công.
 
-###### Sơ đồ tuần tự chức năng Quản trị Camera IP và Thiết lập Vạch ảo Tripwire
+###### Sơ đồ tuần tự chức năng Tự động Dò Quét và Tiếp nhận Camera IP (Auto-Discovery & Quick Onboard)
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor AD as Quản trị viên
     participant CMS as Web CMS Quản trị
-    participant BE as Backend Nghiệp vụ
-    participant REDIS as Kênh Redis Pub/Sub
-    participant WRK as Ingestion Worker
+    participant BE as Backend Core (Discovery Service)
+    participant NET as Mạng VLAN Camera (Switch)
+    participant CAM as Camera Hiện Trường (Hik/Dahua/UNV)
     participant DB as CSDL PostgreSQL
+    participant AUDIT as Nhật ký Audit Log
 
-    AD->>CMS: 1. Kéo thả đoạn thẳng vạch ảo & Chọn hướng mũi tên
-    AD->>CMS: 2. Nhấn [Lưu cấu hình]
+    AD->>CMS: 1. Nhấn [Tự Dò Camera Mạng] & Nhấn [Bắt Đầu Quét Mạng]
     activate CMS
-    CMS->>BE: 3. PUT /api/v1/cameras/:id/tripwire (tọa độ x1,y1,x2,y2, vector)
+    CMS->>BE: 2. POST /api/v1/cameras/discover {subnet: "192.168.10.0/24"}
     activate BE
-    BE->>DB: 4. UPDATE camera_devices SET tripwire_config = :config
-    BE->>DB: 5. INSERT INTO audit_log (action = 'CAMERA_CONFIG_UPDATE')
-    BE->>REDIS: 6. PUBLISH mschool:config:camera {camera_id, coordinates}
-    activate REDIS
-    REDIS-)WRK: 7. Gửi sự kiện cập nhật cấu hình nóng (Hot-Reload)
-    deactivate REDIS
-    activate WRK
-    WRK->>WRK: 8. Nạp lại tọa độ vạch ảo trong RAM (< 100ms)
-    deactivate WRK
-    BE-->>CMS: 9. Phản hồi 200 OK
+    BE->>NET: 3. Phát UDP Multicast (ONVIF WS-Discovery) & Quét cổng RTSP 554
+    activate NET
+    NET->>CAM: 4. Thăm dò thiết bị trong dải VLAN
+    CAM-->>NET: 5. Phản hồi ProbeMatches (IP, MAC, ONVIF UUID, Model)
+    NET-->>BE: 6. Danh sách thiết bị phản hồi
+    deactivate NET
+
+    BE->>DB: 7. SELECT ip_address, location FROM device_cameras
+    DB-->>BE: 8. Danh mục camera đã khai báo trong hệ thống
+    BE->>BE: 9. Đối chiếu & Phân loại: Declared vs Undeclared (Chưa khai báo)
+    BE-->>CMS: 10. Trả về danh sách thiết bị kèm thông số RTSP gợi ý
     deactivate BE
-    CMS-->>AD: 10. Hiển thị toast "Cập nhật vạch ảo thành công"
+    CMS-->>AD: 11. Hiển thị danh thiếp Camera Chưa Khai Báo (Badge cam nổi bật)
+    deactivate CMS
+
+    AD->>CMS: 12. Chọn camera chưa khai báo -> Nhấn [Khai Báo Nhanh]
+    AD->>CMS: 13. Chọn vị trí "Phòng học 11B2" -> Nhấn [Tiếp Nhận Vào Hệ Thống]
+    activate CMS
+    CMS->>BE: 14. POST /api/v1/cameras/quick-onboard {name, ip, rtspUrl, location}
+    activate BE
+    BE->>DB: 15. INSERT INTO device_cameras (status = ONLINE, location, ...)
+    BE->>AUDIT: 16. Ghi Audit Log (action = 'CAMERA_AUTO_DISCOVER_ONBOARD')
+    BE-->>CMS: 17. 200 OK (Tiếp nhận thành công)
+    deactivate BE
+    CMS-->>AD: 18. Toast thông báo & Tự động cập nhật bảng quản trị
     deactivate CMS
 ```
 

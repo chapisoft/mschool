@@ -53,3 +53,21 @@ Hệ thống cung cấp trọn bộ 5 sơ đồ trực quan tương tác cao, k�
 * **Thời gian thông báo đến Phụ huynh:** Đẩy thông báo biến động điểm danh về ứng dụng di động trong vòng **≤ 2.0 giây**.
 * **Năng lực máy chủ:** 1 máy chủ `micro-server` duy nhất phục vụ trọn vẹn trường học quy mô từ 1.500 đến 3.000 học sinh cùng 50 phòng học.
 * **Bảo vệ dữ liệu cá nhân:** Tuân thủ 100% **Nghị định số 13/2023/NĐ-CP**, không lưu ảnh gốc (Zero Raw Face Storage), mã hóa vector chuẩn AES-256 và tự hủy dữ liệu người lạ sau 24 giờ.
+
+---
+
+## 4. THÔNG SỐ KẾT NỐI THIẾT BỊ VẬT LÝ (CAMERA IP LAB / EDGE)
+
+Thông số cấu hình kết nối thiết bị Camera IP vật lý đang hoạt động trực tuyến trong mạng nội bộ:
+
+| Tham số | Giá trị cấu hình | Ghi chú |
+| :--- | :--- | :--- |
+| **Nhà sản xuất / Dòng máy** | Hikvision (Model: FZ720) | Tự động định danh qua cổng 8000 và RTSP realm |
+| **Địa chỉ IP mạng LAN** | `192.168.1.64` | Subnet: `192.168.1.0/24` |
+| **Tài khoản quản trị (Username)** | `admin` | Tài khoản mặc định thiết bị |
+| **Mật khẩu truy cập (Password)** | `MicroCam@2026` | Mật khẩu chuẩn hóa bảo mật cấp hệ thống |
+| **Cổng dịch vụ RTSP** | `554` | Giao thức truyền thông luồng hình ảnh H.264/H.265 |
+| **Cổng dịch vụ Quản trị SDK** | `8000` | Hikvision Private SDK Service |
+| **Cổng dịch vụ Web HUI** | `80` | Giao diện điều khiển ISAPI Webserver |
+| **Chuỗi RTSP Luồng Chính (Channel 101)** | `rtsp://admin:MicroCam@2026@192.168.1.64:554/Streaming/Channels/101` | Độ phân giải 1080p, 25 FPS phục vụ AI Face Recognition |
+| **Chuỗi RTSP Luồng Phụ (Channel 102)** | `rtsp://admin:MicroCam@2026@192.168.1.64:554/Streaming/Channels/102` | Substream độ phân giải thấp (phục vụ xem trước tải nhẹ) |

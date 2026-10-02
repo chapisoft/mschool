@@ -3,13 +3,17 @@
 -- 100% Zero-Hardcode, Thống nhất Enums, Không mock tĩnh ở Frontend
 -- ==============================================================================
 
--- 1. Dữ liệu thiết bị Camera IP và Vạch ảo
+-- 1. Dữ liệu thiết bị Camera IP và Vạch ảo (Thiết bị vật lý thực tế trong mạng nội bộ)
 INSERT INTO device_cameras (id, name, ip_address, rtsp_url, location, status, fps, tripwire_direction) VALUES
-('CAM_GATE_01', 'Cổng Chính - Luồng Đi Vào 01', '192.168.10.101', 'rtsp://admin:mschool2026@192.168.10.101:554/live', 'Cổng Chính (Vào)', 'ONLINE', 25, 'CHECK_IN'),
-('CAM_GATE_02', 'Cổng Chính - Luồng Đi Ra 02', '192.168.10.102', 'rtsp://admin:mschool2026@192.168.10.102:554/live', 'Cổng Chính (Ra)', 'ONLINE', 25, 'CHECK_OUT'),
-('CAM_GATE_03', 'Cổng Phụ Bốt Bảo Vệ - Luồng Xe', '192.168.10.103', 'rtsp://admin:mschool2026@192.168.10.103:554/live', 'Cổng Phụ', 'ONLINE', 25, 'BIDIRECTIONAL'),
-('CAM_CLASS_10A1', 'Camera Phòng Học 10A1', '192.168.20.101', 'rtsp://admin:mschool2026@192.168.20.101:554/live', 'Phòng A1-201', 'ONLINE', 20, 'BIDIRECTIONAL')
-ON CONFLICT (id) DO NOTHING;
+('CAM_GATE_01', 'Camera Cổng Chính (Hikvision)', '192.168.1.64', 'rtsp://admin:MicroCam@2026@192.168.1.64:554/Streaming/Channels/101', 'Cổng Chính', 'ONLINE', 25, 'CHECK_IN')
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    ip_address = EXCLUDED.ip_address,
+    rtsp_url = EXCLUDED.rtsp_url,
+    location = EXCLUDED.location,
+    status = EXCLUDED.status,
+    fps = EXCLUDED.fps,
+    tripwire_direction = EXCLUDED.tripwire_direction;
 
 -- 2. Dữ liệu danh mục phòng học và lớp học
 INSERT INTO classrooms (id, code, name, grade_level, room, building, floor, homeroom_teacher, total_students) VALUES
@@ -39,10 +43,10 @@ ON CONFLICT (identity_code) DO NOTHING;
 -- 4. Phiên điểm danh trong ngày hôm nay (Daily Attendance Sessions)
 INSERT INTO daily_attendance_sessions (identity_code, session_date, check_in_at, attendance_status, total_present_minutes, check_in_camera_id) VALUES
 ('HS10A101', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '2 hour', 'PRESENT', 120, 'CAM_GATE_01'),
-('HS10A102', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '1 hour 45 minute', 'LATE', 105, 'CAM_GATE_02'),
+('HS10A102', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '1 hour 45 minute', 'LATE', 105, 'CAM_GATE_01'),
 ('HS10A103', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '2 hour 10 minute', 'PRESENT', 130, 'CAM_GATE_01'),
 ('HS11A205', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '2 hour 5 minute', 'PRESENT', 125, 'CAM_GATE_01'),
-('HS12A110', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '1 hour 30 minute', 'LATE', 90, 'CAM_GATE_02'),
+('HS12A110', CURRENT_DATE, CURRENT_TIMESTAMP - INTERVAL '1 hour 30 minute', 'LATE', 90, 'CAM_GATE_01'),
 ('HS10A104', CURRENT_DATE, NULL, 'ABSENT', 0, NULL),
 ('HS10A105', CURRENT_DATE, NULL, 'ABSENT', 0, NULL)
 ON CONFLICT (identity_code, session_date) DO NOTHING;
@@ -64,8 +68,7 @@ ON CONFLICT (visitor_code) DO NOTHING;
 
 -- 7. Nhật ký người lạ lảng vảng (Stranger Access Logs)
 INSERT INTO stranger_access_logs (camera_id, captured_image_path, embedding, appeared_at, is_alerted, is_resolved) VALUES
-('CAM_GATE_01', 's3://attendance-snapshots/strangers/20260922_gate01_01.jpg', array_fill(0.035::real, ARRAY[512])::vector, CURRENT_TIMESTAMP - INTERVAL '25 minute', true, false),
-('CAM_GATE_03', 's3://attendance-snapshots/strangers/20260922_gate03_01.jpg', array_fill(0.036::real, ARRAY[512])::vector, CURRENT_TIMESTAMP - INTERVAL '10 minute', true, false);
+('CAM_GATE_01', 's3://attendance-snapshots/strangers/20260922_gate01_01.jpg', array_fill(0.035::real, ARRAY[512])::vector, CURRENT_TIMESTAMP - INTERVAL '25 minute', true, false);
 
 -- 8. Nhật ký kiểm toán mẫu (Audit Logs)
 INSERT INTO audit_logs (tenant_id, user_name, action_code, entity_name, entity_id, reason, ip_address, created_at) VALUES
@@ -113,8 +116,18 @@ INSERT INTO system_parameters (param_key, param_value, param_group, description)
 ('NOTIF_SMS_ENABLED', 'false', 'NOTIFICATION', 'Kích hoạt kênh gửi tin nhắn SMS Brandname dự phòng'),
 ('NOTIF_APP_PUSH_ENABLED', 'true', 'NOTIFICATION', 'Kích hoạt kênh đẩy thông báo ứng dụng di động qua FCM'),
 ('SNAPSHOT_RETENTION_DAYS', '90', 'STORAGE', 'Số ngày lưu trữ ảnh bằng chứng điểm danh trên MinIO S3'),
-('STRANGER_RETENTION_HOURS', '24', 'STORAGE', 'Số giờ lưu trữ ảnh và vết khuôn mặt người lạ trước khi dọn dẹp')
+('STRANGER_RETENTION_HOURS', '24', 'STORAGE', 'Số giờ lưu trữ ảnh và vết khuôn mặt người lạ trước khi dọn dẹp'),
+('CAMERA_SUBNET', '192.168.1.0/24,192.168.10.0/24', 'CAMERA_NETWORK', 'Dải mạng Subnet / VLAN giám sát Camera IP trường học'),
+('CAMERA_RTSP_CREDENTIALS', 'admin:MicroCam@2026@', 'CAMERA_NETWORK', 'Thông tin tài khoản xác thực RTSP mặc định của Camera'),
+('CAMERA_PROBE_PORTS', '554,8000,37777,80', 'CAMERA_NETWORK', 'Danh sách các cổng kiểm tra socket RTSP/SDK/HTTP khi dò quét'),
+('CAMERA_PROBE_TIMEOUT_MS', '150', 'CAMERA_NETWORK', 'Thời gian chờ socket TCP probe (mili-giây)'),
+('RTSP_TEMPLATE_HIKVISION', 'rtsp://{auth}{ip}:554/Streaming/Channels/101', 'CAMERA_NETWORK', 'Mẫu luồng RTSP cho camera hãng Hikvision'),
+('RTSP_TEMPLATE_DAHUA', 'rtsp://{auth}{ip}:554/cam/realmonitor?channel=1&subtype=0', 'CAMERA_NETWORK', 'Mẫu luồng RTSP cho camera hãng Dahua'),
+('RTSP_TEMPLATE_UNIVIEW', 'rtsp://{auth}{ip}:554/media/video1', 'CAMERA_NETWORK', 'Mẫu luồng RTSP cho camera hãng Uniview'),
+('RTSP_TEMPLATE_TIANDY', 'rtsp://{auth}{ip}:554/live/ch0', 'CAMERA_NETWORK', 'Mẫu luồng RTSP cho camera hãng Tiandy'),
+('RTSP_TEMPLATE_GENERIC_ONVIF', 'rtsp://{auth}{ip}:554/live/ch0', 'CAMERA_NETWORK', 'Mẫu luồng RTSP cho camera chuẩn ONVIF chung')
 ON CONFLICT (param_key) DO UPDATE SET param_value = EXCLUDED.param_value, description = EXCLUDED.description;
+
 
 -- 14. Danh mục cơ sở trường học (Master Campuses)
 INSERT INTO master_campuses (campus_code, campus_name, address, phone, is_active) VALUES

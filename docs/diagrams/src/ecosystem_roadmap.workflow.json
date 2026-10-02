@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Lộ Trình 3 Giai Đoạn Phát Triển Hệ Sinh Thái Mở Rộng mschool",
+    "output": "docs/diagrams/html/ecosystem_roadmap.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "full-roadmap-path",
+        "label": "Đường găng lộ trình phát triển toàn diện",
+        "focus": ["step_gw_cots", "step_ai_interval", "step_gate_pilot", "step_diary_auto", "step_patrol_view", "step_signage_pwa", "step_eval_photo", "step_speech_vn", "step_llm_summary", "step_ecosystem_ready"],
+        "note": "Theo dõi lộ trình chuyển đổi số từ nền tảng lõi tối ưu chi phí đến hệ sinh thái học đường toàn diện."
+      },
+      {
+        "id": "phase1-and-phase2-path",
+        "label": "Giai đoạn 1 và 2: Lõi & Nề nếp học đường",
+        "focus": ["step_gw_cots", "step_ai_interval", "step_gate_pilot", "step_diary_auto", "step_patrol_view", "step_signage_pwa"],
+        "note": "Tập trung giải quyết bài toán cốt lõi: điểm danh không dừng, Sổ đầu bài điện tử và Bảng tuần tra giám thị."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "infra", "label": "Hạ Tầng & Video Gateway" },
+    { "id": "ai_engine", "label": "Thuật Toán AI Tối Ưu" },
+    { "id": "discipline", "label": "Nề Nếp & Sổ Đầu Bài" },
+    { "id": "patrol_signage", "label": "Giám Thị & Biển Phòng Học" },
+    { "id": "lecture_ai", "label": "Học Liệu & Tóm Tắt AI" },
+    { "id": "acceptance", "label": "Thương Mại & Nhân Rộng" }
+  ],
+  "phases": [
+    { "id": "p1_core", "label": "Giai đoạn 1: Nền tảng lõi (1 – 2 tháng)", "fromCol": 0, "toCol": 1 },
+    { "id": "p2_discipline", "label": "Giai đoạn 2: Nề nếp & Biển phòng (2 – 3 tháng)", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "p3_scale", "label": "Giai đoạn 3: Trí tuệ nhân tạo bài giảng (3 – 4 tháng)", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "phase1_group", "label": "Tối ưu hóa GPU phổ thông", "lane": "ai_engine", "fromCol": 0, "toCol": 1, "variant": "emphasis" },
+    { "id": "phase2_group", "label": "Số hóa quản lý nề nếp", "lane": "discipline", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "phase3_group", "label": "Học liệu thông minh", "lane": "lecture_ai", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": [
+    "step_gw_cots",
+    "step_ai_interval",
+    "step_gate_pilot",
+    "step_diary_auto",
+    "step_patrol_view",
+    "step_signage_pwa",
+    "step_eval_photo",
+    "step_speech_vn",
+    "step_llm_summary",
+    "step_ecosystem_ready"
+  ],
+  "nodes": [
+    { "id": "step_gw_cots", "lane": "infra", "col": 0, "type": "backend", "label": "Gateway COTS", "sublabel": "ONVIF/RTSP camera cũ", "tag": "Tương thích", "width": 128 },
+    { "id": "step_ai_interval", "lane": "ai_engine", "col": 0, "type": "backend", "label": "AI Chu Kỳ 15s", "sublabel": "Giảm 92% tải GPU", "tag": "RTX 3060", "width": 128 },
+    { "id": "step_gate_pilot", "lane": "infra", "col": 1, "type": "external", "label": "Điểm Danh Cổng", "sublabel": "Không dừng < 0.3s", "tag": "TAR ≥ 98.5%", "width": 128 },
+    { "id": "step_diary_auto", "lane": "discipline", "col": 2, "type": "backend", "label": "Sổ Đầu Bài", "sublabel": "Khớp sĩ số tự động", "tag": "GDPT 2018", "width": 128 },
+    { "id": "step_patrol_view", "lane": "patrol_signage", "col": 2, "type": "frontend", "label": "Tuần Tra Giám Thị", "sublabel": "Xoay tua 16 phòng", "tag": "Web CMS", "width": 128 },
+    { "id": "step_signage_pwa", "lane": "patrol_signage", "col": 3, "type": "frontend", "label": "Biển Phòng PWA", "sublabel": "Tablet / Android Box", "tag": "Giá rẻ < 2tr", "width": 128 },
+    { "id": "step_eval_photo", "lane": "discipline", "col": 4, "type": "frontend", "label": "Dự Giờ Số", "sublabel": "Photo Commentary", "tag": "Phiếu điện tử", "width": 128 },
+    { "id": "step_speech_vn", "lane": "lecture_ai", "col": 4, "type": "backend", "label": "PhoWhisper STT", "sublabel": "Nhận diện giọng 3 miền", "tag": "Tiếng Việt", "width": 128 },
+    { "id": "step_llm_summary", "lane": "lecture_ai", "col": 5, "type": "backend", "label": "Tóm Tắt Bài Học AI", "sublabel": "DeepSeek On-Prem", "tag": "Chỉ mục tri thức", "width": 128 },
+    { "id": "step_ecosystem_ready", "lane": "acceptance", "col": 5, "type": "security", "label": "Hệ Sinh Thái Mở", "sublabel": "Nhân rộng toàn quốc", "tag": "Tiết kiệm 80%", "width": 128 }
+  ],
+  "edges": [
+    { "from": "step_gw_cots", "to": "step_ai_interval" },
+    { "from": "step_ai_interval", "to": "step_gate_pilot", "label": "chuẩn hóa" },
+    { "from": "step_gate_pilot", "to": "step_diary_auto", "label": "mở rộng", "variant": "emphasis" },
+    { "from": "step_diary_auto", "to": "step_patrol_view" },
+    { "from": "step_patrol_view", "to": "step_signage_pwa", "label": "đồng bộ" },
+    { "from": "step_signage_pwa", "to": "step_eval_photo", "label": "nghiệp vụ" },
+    { "from": "step_eval_photo", "to": "step_speech_vn" },
+    { "from": "step_speech_vn", "to": "step_llm_summary", "label": "văn bản", "variant": "emphasis" },
+    { "from": "step_llm_summary", "to": "step_ecosystem_ready", "label": "nghiệm thu", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Giai Đoạn 1: Nền Tảng Lõi (1 – 2 Tháng)",
+      "items": [
+        "Hoàn thiện Gateway thu luồng RTSP/ONVIF từ mọi camera sẵn có",
+        "Tối ưu AI chu kỳ 15s trên GPU phổ thông RTX 3060/4060",
+        "Kiểm chứng điểm danh không dừng tại cổng chính (TAR ≥ 98.5%)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Giai Đoạn 2: Nề Nếp & Biển Phòng (2 – 3 Tháng)",
+      "items": [
+        "Triển khai Sổ đầu bài điện tử tự động khớp sĩ số phòng học",
+        "Xây dựng Bảng điều hành giám thị tuần tra số (Patrol View)",
+        "Phát hành ứng dụng Biển phòng học thông minh Web PWA trên Android"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Giai Đoạn 3: Trí Tuệ Nhân Tạo Bài Giảng (3 – 4 Tháng)",
+      "items": [
+        "Dự giờ trực tuyến với công cụ đính kèm ảnh nhận xét (Photo Commentary)",
+        "Ghi bài giảng, nhận diện giọng nói PhoWhisper và tóm tắt bài học AI",
+        "Đóng gói hoàn chỉnh hệ sinh thái tiết kiệm trên 80% ngân sách"
+      ]
+    }
+  ]
+}

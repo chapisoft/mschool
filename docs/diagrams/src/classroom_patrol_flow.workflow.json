@@ -1,0 +1,97 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Quy Trình Giám Thị Tuần Tra Số & Cảnh Báo Nề Nếp Lớp Học Bằng AI",
+    "output": "docs/diagrams/html/classroom_patrol_flow.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "normal-patrol-path",
+        "label": "Luồng tuần tra định kỳ và chốt sĩ số",
+        "focus": ["step_rtsp_stream", "step_frame_sample", "step_yolo_count", "step_tkb_compare", "step_patrol_grid", "step_auto_diary"],
+        "note": "Theo dõi chu kỳ trích xuất khung hình 15s đếm sĩ số lớp, hiển thị lưới luân phiên và tự động điền Sổ đầu bài."
+      },
+      {
+        "id": "anomaly-alert-path",
+        "label": "Luồng phát hiện bất thường và cảnh báo",
+        "focus": ["step_tkb_compare", "step_alert_teacher", "step_alert_skipping", "step_patrol_grid"],
+        "note": "Theo dõi cơ chế phát hiện giáo viên vào muộn quá 5 phút hoặc phát hiện học sinh bỏ tiết giữa giờ."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "field", "label": "Camera Phòng Học & Lớp" },
+    { "id": "vision", "label": "Bộ Điều Phối & AI Suy Luận" },
+    { "id": "engine", "label": "Bộ Máy Đối Soát Nề Nếp" },
+    { "id": "patrol", "label": "Bảng Tuần Tra Giám Thị Số" },
+    { "id": "notification", "label": "Phản Hồi & Sổ Đầu Bài" },
+    { "id": "exception", "label": "Xử Lý Bất Thường", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "capture", "label": "Thu nhận & Trích xuất chu kỳ", "fromCol": 0, "toCol": 1 },
+    { "id": "inference", "label": "Phân tích AI & Đối soát", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "dispatch", "label": "Tuần tra & Cảnh báo", "fromCol": 4, "toCol": 5 }
+  ],
+  "groups": [
+    { "id": "ai_inference_group", "label": "Suy luận nhẹ trên GPU phổ thông", "lane": "vision", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "anomaly_group", "label": "Bẫy nề nếp học đường", "lane": "exception", "fromCol": 4, "toCol": 5, "variant": "security" }
+  ],
+  "mainPath": [
+    "step_rtsp_stream",
+    "step_frame_sample",
+    "step_yolo_count",
+    "step_tkb_compare",
+    "step_patrol_grid",
+    "step_auto_diary"
+  ],
+  "nodes": [
+    { "id": "step_rtsp_stream", "lane": "field", "col": 0, "type": "external", "label": "Luồng RTSP Lớp", "sublabel": "Camera COTS 2K/4MP", "tag": "Liên tục", "width": 128 },
+    { "id": "step_frame_sample", "lane": "vision", "col": 1, "type": "backend", "label": "Lấy Khung 15s", "sublabel": "Interval Sampler", "tag": "Giảm 92% tải", "width": 128 },
+    { "id": "step_yolo_count", "lane": "vision", "col": 2, "type": "backend", "label": "YOLO Đếm Sĩ Số", "sublabel": "Vị trí & Đầu người", "tag": "RTX 3060", "width": 128 },
+    { "id": "step_tkb_compare", "lane": "engine", "col": 3, "type": "backend", "label": "Đối Soát TKB", "sublabel": "Sĩ số danh nghĩa", "tag": "Thời khóa biểu", "width": 128 },
+    { "id": "step_patrol_grid", "lane": "patrol", "col": 4, "type": "frontend", "label": "Lưới Giám Thị Số", "sublabel": "Xoay tua 16 phòng", "tag": "Web CMS", "width": 128 },
+    { "id": "step_alert_teacher", "lane": "exception", "col": 4, "type": "security", "label": "Vắng Giáo Viên", "sublabel": "Quá giờ > 5 phút", "tag": "Viền đỏ", "width": 128 },
+    { "id": "step_auto_diary", "lane": "notification", "col": 5, "type": "backend", "label": "Sổ Đầu Bài", "sublabel": "Khóa sĩ số tiết học", "tag": "Chuẩn GDPT", "width": 128 },
+    { "id": "step_alert_skipping", "lane": "exception", "col": 5, "type": "security", "label": "Cảnh Báo Bỏ Tiết", "sublabel": "Vắng so với Cổng", "tag": "Báo giám thị", "width": 128 }
+  ],
+  "edges": [
+    { "from": "step_rtsp_stream", "to": "step_frame_sample" },
+    { "from": "step_frame_sample", "to": "step_yolo_count" },
+    { "from": "step_yolo_count", "to": "step_tkb_compare", "label": "sĩ số thực" },
+    { "from": "step_tkb_compare", "to": "step_patrol_grid", "label": "hợp lệ", "variant": "emphasis" },
+    { "from": "step_tkb_compare", "to": "step_alert_teacher", "label": "trống bục", "variant": "security", "role": "error" },
+    { "from": "step_patrol_grid", "to": "step_auto_diary", "label": "chốt tiết" },
+    { "from": "step_tkb_compare", "to": "step_alert_skipping", "label": "hụt sĩ số", "variant": "security", "role": "error" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Thu Nhận Chu Kỳ 15s",
+      "items": [
+        "Camera phổ thông truyền luồng video về Video Gateway",
+        "Bộ trích xuất chỉ lấy 1 khung hình mỗi 15 giây",
+        "Triệt tiêu 92% tải tính toán, không cần GPU đắt đỏ"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Đối Soát Thời Khóa Biểu",
+      "items": [
+        "Mô hình YOLO Nano đếm chính xác số học sinh trong lớp",
+        "Hệ thống đối chiếu với sĩ số danh nghĩa theo thời khóa biểu",
+        "Tự động phát hiện bất thường: trống bục giảng hoặc học sinh bỏ tiết"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Tuần Tra Giám Thị & Sổ Đầu Bài",
+      "items": [
+        "Bảng điều hành giám thị xoay tua luân phiên màn hình 16 lớp học",
+        "Cảnh báo viền đỏ lập tức khi có lớp học phát sinh sự cố",
+        "Tự động điền dữ liệu sĩ số và học sinh vắng vào Sổ đầu bài điện tử"
+      ]
+    }
+  ]
+}

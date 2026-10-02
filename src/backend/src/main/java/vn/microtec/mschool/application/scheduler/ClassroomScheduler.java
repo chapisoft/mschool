@@ -39,13 +39,13 @@ public class ClassroomScheduler {
         int currentPeriod = determineCurrentPeriod();
 
         List<vn.microtec.mschool.domain.classroom.Classroom> classrooms = classroomRepository.findAll();
-        log.info("Bắt đầu tiến trình chụp ảnh đối soát {} phòng học cho Tiết {} ngày {}", classrooms.size(), currentPeriod, today);
+        log.info("Starting classroom attendance verification sweep for {} classrooms (Period {}, Date {})", classrooms.size(), currentPeriod, today);
 
         for (vn.microtec.mschool.domain.classroom.Classroom classroom : classrooms) {
             processClassroomPeriod(classroom, currentPeriod, today);
         }
 
-        log.info("Hoàn thành đối soát sĩ số {} phòng học cho Tiết {}", classrooms.size(), currentPeriod);
+        log.info("Completed classroom attendance verification sweep for {} classrooms (Period {})", classrooms.size(), currentPeriod);
     }
 
     private void processClassroomPeriod(vn.microtec.mschool.domain.classroom.Classroom classroom, int periodNumber, LocalDate scheduleDate) {
@@ -100,7 +100,7 @@ public class ClassroomScheduler {
             );
 
         } catch (Exception e) {
-            log.error("Lỗi đối soát lớp học {} Tiết {}:", classId, periodNumber, e);
+            log.error("Error evaluating attendance for class {} period {}:", classId, periodNumber, e);
         }
     }
 

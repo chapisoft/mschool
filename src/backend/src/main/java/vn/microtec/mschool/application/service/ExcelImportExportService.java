@@ -129,7 +129,7 @@ public class ExcelImportExportService {
             }
 
             workbook.write(out);
-            log.info("Xuất sổ điểm danh Excel thành công cho ngày: {}, số bản ghi: {}", date, sessions.size());
+            log.info("Attendance ledger Excel export completed for date: {}, recordCount={}", date, sessions.size());
             return out.toByteArray();
         }
     }

@@ -42,7 +42,7 @@ public class AttendanceService {
     @Transactional
     public void processAttendanceScan(String identityCode, Direction direction, String cameraId, LocalDateTime scanTime) {
         if (SubjectType.STRANGER.name().equalsIgnoreCase(identityCode)) {
-            log.warn("Cảnh báo an ninh: Phát hiện người lạ tại camera {}", cameraId);
+            log.warn("Security alert: Stranger detected at camera {}", cameraId);
             return;
         }
 
@@ -51,7 +51,7 @@ public class AttendanceService {
         // 1. Kiểm tra cửa sổ Cooldown trên Redis để khử trùng quét lặp
         Boolean isCoolingDown = redisTemplate.hasKey(cooldownKey);
         if (Boolean.TRUE.equals(isCoolingDown)) {
-            log.debug("Bỏ qua quét trùng trong khoảng cooldown {}s: {}", cooldownSeconds, identityCode);
+            log.debug("Skipping duplicate scan within cooldown window ({}s) for identity: {}", cooldownSeconds, identityCode);
             return;
         }
 
@@ -116,7 +116,7 @@ public class AttendanceService {
             );
         }
 
-        log.info("Xử lý quét điểm danh thành công: identity={}, direction={}, status={}",
+        log.info("Attendance event processed successfully: identity={}, direction={}, status={}",
                 identityCode, direction, sessionEntity.getAttendanceStatus());
     }
 }

@@ -45,22 +45,24 @@ export default function Header() {
   );
 
   return (
-    <header className="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
+    <header className="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
       {/* Ngày tháng & Học kỳ */}
-      <div className="flex items-center gap-4">
-        <span className="text-sm font-medium text-slate-600 capitalize">{currentDate}</span>
-        <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <span className="text-xs sm:text-sm font-medium text-slate-600 capitalize hidden sm:inline-block truncate max-w-[160px] md:max-w-[240px] xl:max-w-none">
+          {currentDate}
+        </span>
+        <span className="hidden md:inline-flex text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium whitespace-nowrap flex-shrink-0">
           {t('header.term')}
         </span>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2.5 sm:gap-4 flex-shrink-0">
         {/* Bộ chọn ngôn ngữ dạng Dropdown tinh tế: Chỉ 1 cờ, bấm vào xổ danh sách */}
-        <div className="relative" ref={langDropdownRef}>
+        <div className="relative flex-shrink-0" ref={langDropdownRef}>
           <button
             type="button"
             onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 transition-all shadow-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 transition-all shadow-xs focus:outline-none focus:ring-1 focus:ring-sky-500 whitespace-nowrap"
             title="Đổi ngôn ngữ giao diện"
           >
             <span className="text-base leading-none">{currentLang.flag}</span>
@@ -108,29 +110,29 @@ export default function Header() {
         </div>
 
         {/* Thanh tìm kiếm nhanh */}
-        <div className="relative hidden md:block">
+        <div className="relative hidden 2xl:block flex-shrink-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder={t('header.searchPlaceholder')}
-            className="w-60 bg-slate-100/90 border border-slate-200 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white transition-colors"
+            className="w-48 2xl:w-60 bg-slate-100/90 border border-slate-200 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:bg-white transition-all"
           />
         </div>
 
         {/* Chuông thông báo */}
-        <button className="relative p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors shadow-xs">
+        <button className="relative p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors shadow-xs flex-shrink-0">
           <Bell className="w-4 h-4" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
         </button>
 
         {/* Khối người dùng */}
-        <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-600 to-cyan-500 border border-sky-400/30 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+        <div className="flex items-center gap-2.5 pl-2 sm:pl-3 border-l border-slate-200 flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-600 to-cyan-500 border border-sky-400/30 flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0">
             {user?.avatarText || 'AD'}
           </div>
-          <div className="text-left hidden lg:block">
-            <p className="text-xs font-bold text-slate-800">{user?.fullName || t('header.roleAdmin')}</p>
-            <p className="text-[11px] text-slate-500">{t('header.deptPrincipal')}</p>
+          <div className="text-left hidden xl:block whitespace-nowrap max-w-[140px] 2xl:max-w-[200px]">
+            <p className="text-xs font-bold text-slate-800 truncate">{user?.fullName || t('header.roleAdmin')}</p>
+            <p className="text-[11px] text-slate-500 truncate">{t('header.deptPrincipal')}</p>
           </div>
         </div>
       </div>

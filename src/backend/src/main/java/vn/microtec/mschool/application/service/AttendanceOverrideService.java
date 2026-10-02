@@ -68,7 +68,7 @@ public class AttendanceOverrideService {
                                 "127.0.0.1",
                                 "MSchool-WebCMS");
 
-                log.info("Thực hiện điều chỉnh điểm danh thành công: sessionId={}, oldStatus={}, newStatus={}, operator={}",
+                log.info("Attendance override executed successfully: sessionId={}, oldStatus={}, newStatus={}, operator={}",
                                 sessionId, oldStatus, newStatus, operatorUserName);
 
                 return updated;

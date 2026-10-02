@@ -16,8 +16,14 @@ public interface FaceBiometricProfileRepository extends JpaRepository<FaceBiomet
 
     Optional<FaceBiometricProfile> findByIdentityCode(String identityCode);
 
-    List<FaceBiometricProfile> findBySubjectType(SubjectType subjectType);
+    Optional<FaceBiometricProfile> findByIdentityCodeAndIsDeletedFalse(String identityCode);
 
-    @Query("SELECT f FROM FaceBiometricProfile f WHERE f.departmentOrClass = :departmentOrClass")
+    List<FaceBiometricProfile> findByIsDeletedFalse();
+
+    Optional<FaceBiometricProfile> findByIdAndIsDeletedFalse(UUID id);
+
+    List<FaceBiometricProfile> findBySubjectTypeAndIsDeletedFalse(SubjectType subjectType);
+
+    @Query("SELECT f FROM FaceBiometricProfile f WHERE f.departmentOrClass = :departmentOrClass AND (f.isDeleted = false OR f.isDeleted IS NULL)")
     List<FaceBiometricProfile> findByDepartmentOrClass(@Param("departmentOrClass") String departmentOrClass);
 }

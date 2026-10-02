@@ -45,7 +45,7 @@ public class WebhookDispatcherService {
         try {
             payloadJson = objectMapper.writeValueAsString(payloadObject);
         } catch (Exception e) {
-            log.error("Lỗi tuần tự hóa JSON payload cho sự kiện Webhook {}", eventType, e);
+            log.error("Failed to serialize JSON payload for webhook event {}: {}", eventType, e.getMessage(), e);
             return;
         }
 
@@ -83,14 +83,14 @@ public class WebhookDispatcherService {
             deliveryLog.setResponseStatusCode(200);
             deliveryLog.setResponseBody(response != null ? response : "OK");
             deliveryLog.setDeliveryStatus(WebhookStatus.SUCCESS);
-            log.info("Giao vận Webhook thành công tới đối tác {} ({})",
+            log.info("Webhook dispatched successfully to subscriber {} ({})",
                     subscription.getSubscriberName(), subscription.getTargetUrl());
 
         } catch (Exception e) {
             deliveryLog.setResponseStatusCode(500);
             deliveryLog.setResponseBody(e.getMessage());
             deliveryLog.setDeliveryStatus(WebhookStatus.FAILED);
-            log.warn("Giao vận Webhook thất bại tới đối tác {}: {}",
+            log.warn("Webhook dispatch failed to subscriber {}: {}",
                     subscription.getSubscriberName(), e.getMessage());
         }
 
@@ -105,7 +105,7 @@ public class WebhookDispatcherService {
             byte[] hmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hmac);
         } catch (Exception e) {
-            log.error("Lỗi tính toán chữ ký HMAC-SHA256", e);
+            log.error("Failed to compute HMAC-SHA256 signature", e);
             return "";
         }
     }

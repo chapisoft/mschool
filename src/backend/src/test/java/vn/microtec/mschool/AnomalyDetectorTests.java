@@ -3,6 +3,7 @@ package vn.microtec.mschool;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import vn.microtec.mschool.application.service.ClassroomAnomalyDetectorService;
+import vn.microtec.mschool.domain.enums.AnomalyType;
 
 import java.util.List;
 import java.util.Map;
@@ -24,11 +25,11 @@ class AnomalyDetectorTests {
         assertEquals(3, anomalies.size());
 
         boolean hasHighAbsence = anomalies.stream()
-                .anyMatch(a -> ClassroomAnomalyDetectorService.AnomalyType.HIGH_ABSENCE_RATE.name().equals(a.get("type")));
+                .anyMatch(a -> AnomalyType.HIGH_ABSENCE_RATE.name().equals(a.get("type")));
         boolean hasTeacherMissing = anomalies.stream()
-                .anyMatch(a -> ClassroomAnomalyDetectorService.AnomalyType.TEACHER_MISSING.name().equals(a.get("type")));
+                .anyMatch(a -> AnomalyType.TEACHER_MISSING.name().equals(a.get("type")));
         boolean hasStranger = anomalies.stream()
-                .anyMatch(a -> ClassroomAnomalyDetectorService.AnomalyType.STRANGER_IN_CLASSROOM.name().equals(a.get("type")));
+                .anyMatch(a -> AnomalyType.STRANGER_IN_CLASSROOM.name().equals(a.get("type")));
 
         assertTrue(hasHighAbsence);
         assertTrue(hasTeacherMissing);

@@ -120,7 +120,8 @@ lerna-debug.log*
 
 # Next.js Build Output
 .next/
-out/
+/out/
+/src/cms/out/
 .turbo/
 *.tsbuildinfo
 next-env.d.ts

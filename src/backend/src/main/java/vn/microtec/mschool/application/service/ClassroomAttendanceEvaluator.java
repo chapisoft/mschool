@@ -55,7 +55,7 @@ public class ClassroomAttendanceEvaluator {
             isTeacherPresent = true;
             if (!actualTeacher.equalsIgnoreCase(scheduledTeacherCode)) {
                 isSubstitute = true;
-                log.info("Lớp {} Tiết {}: Phát hiện giáo viên dạy thay {}", classId, periodNumber, actualTeacher);
+                log.info("Class {} Period {}: Detected substitute instructor: {}", classId, periodNumber, actualTeacher);
             }
         }
 
@@ -69,7 +69,7 @@ public class ClassroomAttendanceEvaluator {
                 presentSet.add(code);
             } else {
                 wrongClassList.add(code);
-                log.warn("Cảnh báo học sinh ngồi nhầm lớp {} Tiết {}: Mã {}", classId, periodNumber, code);
+                log.warn("Wrong classroom anomaly in class {} period {}: studentCode={}", classId, periodNumber, code);
             }
         }
 

@@ -41,9 +41,9 @@ public class TenantSecurityFilter implements Filter {
         if (UserRole.ROLE_TEACHER.name().equals(userRole) && requestUri.contains("/attendance/records/override")) {
             String targetClass = httpRequest.getParameter("classCode");
             if (targetClass != null && assignedClassroom != null && !targetClass.equals(assignedClassroom)) {
-                log.warn("Chặn truy cập trái quyền IDOR: Teacher lớp {} cố gắng can thiệp lớp {}",
+                log.warn("Blocked IDOR attempt: Teacher assigned to class {} attempted to modify class {}",
                         assignedClassroom, targetClass);
-                httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "FORBIDDEN: Không có quyền can thiệp lớp học khác");
+                httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "FORBIDDEN: Access to other classroom scope is denied");
                 return;
             }
         }

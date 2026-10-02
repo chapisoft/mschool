@@ -69,7 +69,7 @@ public class VisitorService {
 
         miaiClientAdapter.registerVisitorToRam(miaiRequest);
 
-        log.info("Đã đăng ký và đồng bộ khách {} (Mã: {}) có hiệu lực đến {}",
+        log.info("Registered and synced visitor {} (code={}) valid until {}",
                 fullName, visitorCode, validTo);
 
         return saved;
@@ -87,7 +87,7 @@ public class VisitorService {
             visitorRepository.save(Objects.requireNonNull(reg));
 
             miaiClientAdapter.evictVisitorFromRam(visitorCode);
-            log.info("Đã thu hồi quyền ra vào của khách {}", visitorCode);
+            log.info("Revoked access permissions for visitor {}", visitorCode);
             return true;
         }
         return false;
@@ -114,7 +114,7 @@ public class VisitorService {
         for (VisitorRegistration reg : expiredList) {
             reg.setStatus(VisitorStatus.EXPIRED);
             visitorRepository.save(Objects.requireNonNull(reg));
-            log.info("Tự động chuyển trạng thái EXPIRED cho khách {}", reg.getVisitorCode());
+            log.info("Transitioned visitor registration status to EXPIRED for code {}", reg.getVisitorCode());
         }
     }
 }

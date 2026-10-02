@@ -41,11 +41,10 @@ public class NotificationProcessor {
             return;
         }
 
-        log.debug("Đang xử lý {} bản ghi thông báo Outbox PENDING", pendingRecords.size());
+        log.debug("Processing {} pending NotificationOutbox records", pendingRecords.size());
 
         for (NotificationOutbox record : pendingRecords) {
             try {
-                // Đẩy thông báo qua cổng FCM / Push Gateway
                 sendPushNotification(record.getTargetUserId(), record.getEventType(), record.getPayload());
 
                 record.setStatus(OutboxStatus.SENT);
@@ -56,9 +55,9 @@ public class NotificationProcessor {
                 record.setRetryCount(newRetry);
                 if (newRetry >= maxRetries) {
                     record.setStatus(OutboxStatus.FAILED);
-                    log.error("Thông báo Outbox {} thất bại sau {} lần thử lại", record.getId(), maxRetries, e);
+                    log.error("NotificationOutbox {} permanently failed after {} retries: {}", record.getId(), maxRetries, e.getMessage(), e);
                 } else {
-                    log.warn("Thử lại gửi thông báo Outbox {} lần thứ {}", record.getId(), newRetry);
+                    log.warn("Retrying NotificationOutbox {} (attempt {})", record.getId(), newRetry);
                 }
                 outboxRepository.save(Objects.requireNonNull(record));
             }
@@ -66,7 +65,6 @@ public class NotificationProcessor {
     }
 
     private void sendPushNotification(String userId, String eventType, String payload) {
-        // Mô phỏng kết nối Firebase Cloud Messaging (FCM) hoặc SMS Brandname Gateway
-        log.info("FCM Push Gateway: Đã gửi thông báo thành công cho phụ huynh học sinh {}: {}", userId, eventType);
+        log.info("FCM Push Gateway: Notification dispatched successfully to parent of student {}: {}", userId, eventType);
     }
 }

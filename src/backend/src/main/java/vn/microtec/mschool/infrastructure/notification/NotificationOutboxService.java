@@ -48,9 +48,9 @@ public class NotificationOutboxService {
                     .build();
 
             outboxRepository.save(Objects.requireNonNull(outboxRecord));
-            log.info("Đã ghi thông báo Outbox cho đối tượng {}: loại sự kiện {}", identityCode, eventType);
+            log.info("Persisted NotificationOutbox entry for subject {}: eventType={}", identityCode, eventType);
         } catch (JsonProcessingException e) {
-            log.error("Lỗi đóng gói JSON thông báo Outbox cho {}", identityCode, e);
+            log.error("Failed to serialize NotificationOutbox payload for {}: {}", identityCode, e.getMessage(), e);
         }
     }
 }

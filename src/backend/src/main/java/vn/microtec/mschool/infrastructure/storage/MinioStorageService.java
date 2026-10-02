@@ -18,7 +18,7 @@ public class MinioStorageService {
         String bucket = StorageBucket.SNAPSHOTS.getBucketName();
         String objectKey = String.format("snapshots/%s/%s_%s.jpg",
                 cameraId, identityCode, UUID.randomUUID().toString().substring(0, 8));
-        log.info("Đã lưu ảnh snapshot vào MinIO: bucket={}, key={}, size={} bytes",
+        log.info("Persisted snapshot image to MinIO storage: bucket={}, key={}, size={} bytes",
                 bucket, objectKey, imageBytes.length);
         return String.format("minio://%s/%s", bucket, objectKey);
     }

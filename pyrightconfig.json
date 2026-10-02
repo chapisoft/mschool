@@ -1,0 +1,9 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [
+    "src/services/camera-worker"
+  ],
+  "reportMissingImports": "none",
+  "pythonVersion": "3.11"
+}

@@ -49,7 +49,7 @@ public class AttendanceController {
     /**
      * Endpoint tiếp nhận sự kiện nhận diện từ Ingestion Worker.
      */
-    @PostMapping("/scan")
+    @PostMapping({"/scan", "/records"})
     public ResponseEntity<ApiResponse<String>> ingestScanEvent(@Valid @RequestBody AttendanceScanRequest request) {
         LocalDateTime scanTime = request.getScanTime() != null ? request.getScanTime() : LocalDateTime.now();
         attendanceService.processAttendanceScan(

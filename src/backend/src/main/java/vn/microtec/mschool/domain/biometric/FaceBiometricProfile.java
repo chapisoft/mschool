@@ -39,6 +39,13 @@ public class FaceBiometricProfile {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 
+    @Builder.Default
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
+
+    @Column(name = "deleted_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime deletedAt;
+
     @Column(name = "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private OffsetDateTime createdAt;
 
@@ -50,6 +57,7 @@ public class FaceBiometricProfile {
         if (createdAt == null) createdAt = OffsetDateTime.now();
         if (updatedAt == null) updatedAt = OffsetDateTime.now();
         if (isActive == null) isActive = true;
+        if (isDeleted == null) isDeleted = false;
     }
 
     @PreUpdate

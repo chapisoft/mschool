@@ -38,6 +38,13 @@ services:
       dockerfile: Dockerfile
     container_name: miai-core
     restart: always
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     environment:
       APP_ENV: production
       SERVER_PORT: 8000
@@ -46,6 +53,11 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: SecretRedisPass2026!
       DATABASE_URL: postgresql+asyncpg://mschool_admin:SecretCampusPassword2026!@mschool-postgres:5432/mschool_db
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,video
+      CUDA_VISIBLE_DEVICES: "0"
+      FACE_EXECUTION_PROVIDER: CUDAExecutionProvider
+      FACE_DEVICE: cuda
     ports:
       - "8000:8000"
     depends_on:
@@ -62,14 +74,26 @@ services:
     container_name: mschool-camera-worker
     restart: always
     network_mode: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     environment:
       MIAI_API_URL: http://127.0.0.1:8000/api/v1
       MIAI_API_KEY: miai-secret-key-prod
       MSCHOOL_BACKEND_URL: http://127.0.0.1:8080/api/v1
       EDIF_FIQA_THRESHOLD: "0.85"
       MAX_TRACK_DURATION_SEC: "0.80"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,video
+      CUDA_VISIBLE_DEVICES: "0"
+      ONNX_EXECUTION_PROVIDER: CUDAExecutionProvider
     depends_on:
       - miai-core
+
 
   # 5. Máy chủ Nghiệp vụ Backend Spring Boot
   mschool-backend:

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -8,7 +9,7 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
 }
 
 export default function Modal({
@@ -18,6 +19,12 @@ export default function Modal({
   children,
   maxWidth = 'lg',
 }: ModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -34,7 +41,7 @@ export default function Modal({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const maxWidthClass = {
     sm: 'max-w-sm',
@@ -43,10 +50,11 @@ export default function Modal({
     xl: 'max-w-xl',
     '2xl': 'max-w-2xl',
     '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
   }[maxWidth];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+  const modalNode = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
         className="fixed inset-0"
         onClick={onClose}
@@ -58,7 +66,7 @@ export default function Modal({
           <h3 className="text-base font-bold text-slate-900 tracking-tight">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -69,4 +77,6 @@ export default function Modal({
       </div>
     </div>
   );
+
+  return createPortal(modalNode, document.body);
 }

@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Kiến Trúc Hệ Sinh Thái Mở Rộng mschool: Tối Ưu Công Nghệ & Chi Phí",
+    "output": "docs/diagrams/html/ecosystem_architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "patrol-attendance-view",
+        "label": "Luồng giám thị tuần tra và điểm danh lớp học",
+        "focus": ["cam_edge", "video_gw", "ai_engine", "core_be", "cms_web", "kiosk_pwa"],
+        "note": "Camera lớp học trích xuất khung hình chu kỳ 15s đưa vào AI đếm sĩ số, đồng bộ Sổ đầu bài và Bảng tuần tra giám thị."
+      },
+      {
+        "id": "lecture-ai-summary-view",
+        "label": "Luồng ghi bài giảng và tóm tắt AI chi phí thấp",
+        "focus": ["mic_edge", "speech_ai", "core_be", "cms_eval_ai"],
+        "note": "Micro không dây giáo viên thu âm trực diện, PhoWhisper chuyển văn bản tiếng Việt và mô hình AI tóm tắt bài học."
+      },
+      {
+        "id": "external-integration-view",
+        "label": "Luồng tích hợp đào tạo và thông báo phụ huynh",
+        "focus": ["cam_edge", "video_gw", "ai_engine", "core_be", "ext_integration"],
+        "note": "Điểm danh cổng trường, đẩy thông báo phụ huynh qua FCM Push và đồng bộ CSDL ngành VnEdu/SMAS."
+      }
+    ]
+  },
+  "components": [
+    { "id": "cam_edge", "type": "external", "label": "Camera IP Hiện Trường", "sublabel": "Cổng WDR & Lớp Học 2K", "pos": [50, 80], "size": [160, 56], "tag": "Tận dụng camera cũ" },
+    { "id": "kiosk_pwa", "type": "frontend", "label": "Biển Phòng Học PWA", "sublabel": "Tablet / Android TV Box", "pos": [50, 240], "size": [160, 56], "tag": "Chi phí < 2 triệu" },
+    { "id": "mic_edge", "type": "external", "label": "Micro Cài Áo 2.4GHz", "sublabel": "Wireless Lavalier Giáo Viên", "pos": [50, 400], "size": [160, 56], "tag": "Thu âm trực diện" },
+
+    { "id": "video_gw", "type": "backend", "label": "Video Gateway", "sublabel": "FFmpeg / RTSP Proxy", "pos": [320, 80], "size": [160, 56], "tag": "Độc lập phần cứng" },
+    { "id": "ai_engine", "type": "backend", "label": "AI Suy Luận Chu Kỳ", "sublabel": "YOLO Nano + Face ONNX", "pos": [320, 240], "size": [160, 56], "tag": "Giảm 92% tải GPU" },
+    { "id": "speech_ai", "type": "backend", "label": "Xử Lý Âm Thanh & LLM", "sublabel": "PhoWhisper + DeepSeek", "pos": [320, 400], "size": [160, 56], "tag": "Tiếng Việt 3 miền" },
+
+    { "id": "core_be", "type": "backend", "label": "Nghiệp Vụ Lõi mschool", "sublabel": "Spring Boot Hexagonal", "pos": [590, 80], "size": [160, 56], "tag": "State Machine" },
+    { "id": "cache_redis", "type": "database", "label": "Redis Cache", "sublabel": "Nề Nếp & Debounce 90s", "pos": [590, 240], "size": [160, 56], "tag": "RAM < 1ms" },
+    { "id": "db_postgres", "type": "database", "label": "CSDL PostgreSQL", "sublabel": "Sổ Đầu Bài & Audit Log", "pos": [590, 400], "size": [160, 56], "tag": "Nghị định 13" },
+
+    { "id": "cms_web", "type": "frontend", "label": "Web CMS Quản Trị", "sublabel": "Patrol View & Sổ Đầu Bài", "pos": [860, 80], "size": [160, 56], "tag": "Next.js 14 FSD" },
+    { "id": "cms_eval_ai", "type": "frontend", "label": "Dự Giờ & Bài Giảng AI", "sublabel": "Photo Commentary & Notes", "pos": [860, 240], "size": [160, 56], "tag": "Chuẩn GDPT 2018" },
+    { "id": "ext_integration", "type": "external", "label": "Cổng Tích Hợp Đào Tạo", "sublabel": "VnEdu / SMAS / App Phụ Huynh", "pos": [860, 400], "size": [160, 56], "tag": "Open API & Webhook" }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Máy chủ trạm nội bộ trường học (GPU phổ thông RTX 3060/4060, CPU 16-32 luồng, 32GB RAM)",
+      "wraps": ["video_gw", "ai_engine", "speech_ai", "core_be", "cache_redis", "db_postgres"]
+    }
+  ],
+  "connections": [
+    { "id": "c1", "from": "cam_edge", "to": "video_gw", "label": "RTSP", "variant": "emphasis" },
+    { "id": "c2", "from": "video_gw", "to": "ai_engine", "label": "Frame 15s", "fromSide": "bottom", "toSide": "top", "labelAt": [400, 188] },
+    { "id": "c3", "from": "ai_engine", "to": "kiosk_pwa", "label": "Sĩ số thực", "fromSide": "left", "toSide": "right", "labelAt": [265, 258] },
+    { "id": "c4", "from": "mic_edge", "to": "speech_ai", "label": "Audio", "fromSide": "right", "toSide": "left", "labelAt": [265, 418] },
+    { "id": "c5", "from": "ai_engine", "to": "core_be", "label": "Sĩ số & ID", "fromSide": "top", "toSide": "left", "labelAt": [535, 108], "variant": "emphasis" },
+    { "id": "c6", "from": "speech_ai", "to": "core_be", "label": "Tóm tắt AI", "fromSide": "right", "toSide": "bottom", "labelAt": [540, 240] },
+    { "id": "c7", "from": "core_be", "to": "cache_redis", "label": "Nề nếp", "fromSide": "bottom", "toSide": "top", "labelAt": [670, 188] },
+    { "id": "c8", "from": "cache_redis", "to": "db_postgres", "label": "Lưu trữ", "fromSide": "bottom", "toSide": "top", "labelAt": [670, 348] },
+    { "id": "c9", "from": "core_be", "to": "cms_web", "label": "WebSocket", "labelAt": [805, 96], "variant": "emphasis" },
+    { "id": "c10", "from": "cms_web", "to": "cms_eval_ai", "label": "Media API", "fromSide": "bottom", "toSide": "top", "labelAt": [940, 188] },
+    { "id": "c11", "from": "core_be", "to": "ext_integration", "label": "Webhook", "fromSide": "right", "toSide": "left", "labelAt": [805, 270] }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Chắt Lọc Phần Cứng Phổ Thông",
+      "items": [
+        "Camera IP COTS 2K/4MP chuẩn ONVIF/RTSP, tận dụng 100% camera sẵn có",
+        "Micro không dây 2.4GHz cài áo giáo viên thay cho micro mảng âm trần",
+        "Biển phòng học chạy Web PWA trên máy tính bảng hoặc Android TV giá rẻ"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Tối Ưu Thuật Toán & Giảm Tải GPU",
+      "items": [
+        "Suy luận theo chu kỳ 15s đếm sĩ số lớp, giảm 92% tải tính toán GPU",
+        "1 card đồ họa phổ thông RTX 3060/4060 xử lý mượt mà 30 - 50 phòng học",
+        "PhoWhisper + DeepSeek tóm tắt bài giảng tiếng Việt chuẩn GDPT 2018"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Nghiệp Vụ Thuần Việt & Tiết Kiệm Chi Phí",
+      "items": [
+        "Sổ đầu bài điện tử tự động, Bảng tuần tra giám thị số xoay tua màn hình",
+        "Dự giờ số đính kèm ảnh nhận xét thời gian thực (Photo Commentary)",
+        "Tổng mức đầu tư giảm trên 80% so với phương án thiết bị nhập khẩu"
+      ]
+    }
+  ]
+}

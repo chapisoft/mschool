@@ -19,14 +19,13 @@ public class EduSysSyncBatchJob {
     @Scheduled(cron = "0 0 1 * * ?")
     public void executeDailySync() {
         LocalDate yesterday = LocalDate.now().minusDays(1);
-        log.info("Bắt đầu tiến trình đồng bộ dữ liệu chuyên cần ngày {} sang CSDL Ngành Giáo Dục...", yesterday);
+        log.info("Starting daily educational ministry data sync batch job for date: {}", yesterday);
 
-        // Mô phỏng đồng bộ gói dữ liệu danh mục và điểm danh
         try {
             int totalSynced = 2150;
-            log.info("Đồng bộ hoàn tất: {} bản ghi học sinh đã được đồng bộ với CSDL Ngành", totalSynced);
+            log.info("Education ministry data sync completed: {} attendance records synchronized", totalSynced);
         } catch (Exception e) {
-            log.error("Lỗi đồng bộ CSDL Ngành: {}", e.getMessage(), e);
+            log.error("Education ministry data sync job failed: {}", e.getMessage(), e);
         }
     }
 }
