@@ -31,6 +31,7 @@ app.add_middleware(
 # Bộ đệm lưu trữ khung hình mới nhất của từng camera: {camera_id: np.ndarray}
 _latest_rendered_frames: Dict[str, np.ndarray] = {}
 _connected_websockets: list = []
+_active_mjpeg_streams: int = 0
 _event_dispatcher: Optional[EventDispatcher] = None
 
 
@@ -39,29 +40,39 @@ def set_event_dispatcher(dispatcher: EventDispatcher):
     _event_dispatcher = dispatcher
 
 
+def get_active_viewers_count() -> int:
+    """Trả về tổng số client đang kết nối theo dõi trực tiếp (MJPEG + WebSocket)."""
+    return len(_connected_websockets) + _active_mjpeg_streams
+
+
 def update_latest_frame(camera_id: str, frame: np.ndarray):
     """Cập nhật khung hình đã render overlay của camera."""
     _latest_rendered_frames[camera_id] = frame
 
 
 def generate_mjpeg_stream(camera_id: str) -> Generator[bytes, None, None]:
-    """Sinh luồng byte MJPEG multipart/x-mixed-replace."""
-    while True:
-        frame = _latest_rendered_frames.get(camera_id)
-        if frame is None:
-            # Tạo khung hình chờ mặc định nếu camera chưa sẵn sàng
-            dummy = np.zeros((480, 640, 3), dtype=np.uint8)
-            cv2.putText(dummy, f"Ket noi Camera: {camera_id}...", (40, 240), cv2.FONT_HERSHEY_DUPLEX, 0.7, (200, 200, 200), 1)
-            frame = dummy
+    """Sinh luồng byte MJPEG multipart/x-mixed-replace với kiểm soát tốc độ khung hình."""
+    global _active_mjpeg_streams
+    _active_mjpeg_streams += 1
+    try:
+        while True:
+            frame = _latest_rendered_frames.get(camera_id)
+            if frame is None:
+                # Tạo khung hình chờ mặc định nếu camera chưa sẵn sàng
+                dummy = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(dummy, f"Ket noi Camera: {camera_id}...", (40, 240), cv2.FONT_HERSHEY_DUPLEX, 0.7, (200, 200, 200), 1)
+                frame = dummy
 
-        ret, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-        if ret:
-            frame_bytes = buffer.tobytes()
-            yield (
-                b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
-            )
-        time.sleep(0.04)  # ~25 FPS
+            ret, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            if ret:
+                frame_bytes = buffer.tobytes()
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+                )
+            time.sleep(0.04)  # Giới hạn phát tối đa 25 FPS, giảm tải CPU
+    finally:
+        _active_mjpeg_streams = max(0, _active_mjpeg_streams - 1)
 
 
 @app.get("/api/v1/cameras/{camera_id}/stream")

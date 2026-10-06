@@ -7,6 +7,14 @@ Supports ONNX Runtime with CUDA / DirectML / CPU and Adaptive Synthetic Fallback
 import os
 import cv2
 import numpy as np
+
+# Giới hạn OpenCV đơn luồng
+cv2.setNumThreads(1)
+try:
+    cv2.ocl.setUseOpenCL(False)
+except Exception:
+    pass
+
 from typing import List, Tuple, Optional, Dict, Any
 from dataclasses import dataclass
 

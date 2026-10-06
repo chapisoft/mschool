@@ -116,6 +116,38 @@ public class BiometricController {
                 .build());
     }
 
+    private Optional<FaceBiometricProfile> findProfileByIdOrCode(String identifier) {
+        if (identifier == null || identifier.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            UUID uuid = UUID.fromString(identifier.trim());
+            Optional<FaceBiometricProfile> byId = profileRepository.findByIdAndIsDeletedFalse(uuid);
+            if (byId.isPresent()) {
+                return byId;
+            }
+        } catch (IllegalArgumentException ignored) {
+        }
+        return profileRepository.findByIdentityCodeAndIsDeletedFalse(identifier.trim().toUpperCase());
+    }
+
+    @GetMapping("/profiles/{id}")
+    public ResponseEntity<ApiResponse<FaceBiometricProfile>> getProfileById(@PathVariable String id) {
+        return findProfileByIdOrCode(id)
+                .map(profile -> ResponseEntity.ok(ApiResponse.<FaceBiometricProfile>builder()
+                        .status(ResponseStatus.SUCCESS)
+                        .code(ErrorCode.SYS_SUCCESS_0000.name())
+                        .message(i18nService.getMessage("biometric.detail.success", "Lấy chi tiết hồ sơ sinh trắc thành công"))
+                        .data(profile)
+                        .build()))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.<FaceBiometricProfile>builder()
+                                .status(ResponseStatus.ERROR)
+                                .code(ErrorCode.ATT_ERR_RECORD_NOT_FOUND.name())
+                                .message(i18nService.getMessage("biometric.notfound", "Không tìm thấy hồ sơ sinh trắc"))
+                                .build()));
+    }
+
     /**
      * Endpoint AI: Thẩm định chất lượng ảnh (eDifFIQA), góc quay đầu (Head Pose),
      * kiểm tra che khuất và trích xuất vector 512 chiều qua miai.
@@ -258,10 +290,11 @@ public class BiometricController {
 
     @PutMapping("/profiles/{id}")
     public ResponseEntity<ApiResponse<FaceBiometricProfile>> updateProfile(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @RequestBody UpdateProfileRequest req) {
-        return profileRepository.findByIdAndIsDeletedFalse(id)
+        return findProfileByIdOrCode(id)
                 .map(profile -> {
+                    UUID profileId = profile.getId();
                     if (req.getFullName() != null && !req.getFullName().trim().isEmpty()) {
                         profile.setFullName(req.getFullName().trim());
                     }
@@ -285,10 +318,10 @@ public class BiometricController {
                             try {
                                 jdbcTemplate.update(
                                         "UPDATE face_biometric_profiles SET embedding_primary = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                                        primaryStr, id);
-                                log.info("Đã cập nhật embedding_primary từ client cho hồ sơ ID: {}", id);
+                                        primaryStr, profileId);
+                                log.info("Đã cập nhật embedding_primary từ client cho hồ sơ ID: {}", profileId);
                             } catch (Exception ex) {
-                                log.warn("Không thể cập nhật embedding_primary cho {}: {}", id, ex.getMessage());
+                                log.warn("Không thể cập nhật embedding_primary cho {}: {}", profileId, ex.getMessage());
                             }
                         }
                     }
@@ -298,10 +331,10 @@ public class BiometricController {
                             try {
                                 jdbcTemplate.update(
                                         "UPDATE face_biometric_profiles SET embedding_left = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                                        leftStr, id);
-                                log.info("Đã cập nhật embedding_left từ client cho hồ sơ ID: {}", id);
+                                        leftStr, profileId);
+                                log.info("Đã cập nhật embedding_left từ client cho hồ sơ ID: {}", profileId);
                             } catch (Exception ex) {
-                                log.warn("Không thể cập nhật embedding_left cho {}: {}", id, ex.getMessage());
+                                log.warn("Không thể cập nhật embedding_left cho {}: {}", profileId, ex.getMessage());
                             }
                         }
                     }
@@ -311,10 +344,10 @@ public class BiometricController {
                             try {
                                 jdbcTemplate.update(
                                         "UPDATE face_biometric_profiles SET embedding_right = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                                        rightStr, id);
-                                log.info("Đã cập nhật embedding_right từ client cho hồ sơ ID: {}", id);
+                                        rightStr, profileId);
+                                log.info("Đã cập nhật embedding_right từ client cho hồ sơ ID: {}", profileId);
                             } catch (Exception ex) {
-                                log.warn("Không thể cập nhật embedding_right cho {}: {}", id, ex.getMessage());
+                                log.warn("Không thể cập nhật embedding_right cho {}: {}", profileId, ex.getMessage());
                             }
                         }
                     }
@@ -345,11 +378,11 @@ public class BiometricController {
                                 String sql = String.format(
                                         "UPDATE face_biometric_profiles SET %s = ?::vector, quality_score = GREATEST(quality_score, ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                                         column);
-                                jdbcTemplate.update(sql, vectorStr, qScore, id);
-                                log.info("Đã cập nhật vector khuôn mặt ({}) cho hồ sơ ID: {}", column, id);
+                                jdbcTemplate.update(sql, vectorStr, qScore, profileId);
+                                log.info("Đã cập nhật vector khuôn mặt ({}) cho hồ sơ ID: {}", column, profileId);
                             }
                         } catch (Exception e) {
-                            log.error("Không thể trích xuất vector khi cập nhật hồ sơ {}: {}", id, e.getMessage());
+                            log.error("Không thể trích xuất vector khi cập nhật hồ sơ {}: {}", profileId, e.getMessage());
                         }
                     }
 
@@ -359,7 +392,7 @@ public class BiometricController {
                             .status(ResponseStatus.SUCCESS)
                             .code(ErrorCode.SYS_SUCCESS_0000.name())
                             .message(i18nService.getMessage("biometric.update.success",
-                                    "Cập nhật hồ sơ sinh trắc học thành công"))
+                                     "Cập nhật hồ sơ sinh trắc học thành công"))
                             .data(saved)
                             .build());
                 })
@@ -372,9 +405,10 @@ public class BiometricController {
     }
 
     @DeleteMapping("/profiles/{id}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> deleteProfile(@PathVariable UUID id) {
-        return profileRepository.findByIdAndIsDeletedFalse(id)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> deleteProfile(@PathVariable String id) {
+        return findProfileByIdOrCode(id)
                 .map(profile -> {
+                    UUID profileId = profile.getId();
                     profile.setIsDeleted(true);
                     profile.setIsActive(false);
                     profile.setDeletedAt(OffsetDateTime.now());
@@ -384,7 +418,7 @@ public class BiometricController {
                             .code(ErrorCode.SYS_SUCCESS_0000.name())
                             .message(i18nService.getMessage("biometric.delete.success",
                                     "Xóa mềm hồ sơ sinh trắc thành công"))
-                            .data(Map.of("id", id, "deleted", true, "softDeleted", true))
+                            .data(Map.of("id", profileId, "deleted", true, "softDeleted", true))
                             .build());
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)

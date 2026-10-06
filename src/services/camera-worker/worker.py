@@ -10,6 +10,14 @@ import threading
 import uvicorn
 import cv2
 import numpy as np
+
+# Giới hạn OpenCV chỉ dùng 1 luồng nội bộ để triệt tiêu hiện tượng Thread Explosion
+cv2.setNumThreads(1)
+try:
+    cv2.ocl.setUseOpenCL(False)
+except Exception:
+    pass
+
 from typing import Dict, List, Optional
 from config import settings, CameraConfig, CameraPurpose
 from pose_engine import RTMOPoseEngine
@@ -57,16 +65,22 @@ class CameraStreamProcessor(threading.Thread):
             last_time = now
             self.fps = 0.9 * self.fps + 0.1 * (1.0 / dt)
 
-            # 1. Thu nhận khung hình
+            # 1. Thu nhận khung hình với kiểm soát nhịp thích ứng
             if not synthetic_mode:
                 ret, frame = cap.read()
                 if not ret or frame is None:
-                    time.sleep(0.03)
+                    time.sleep(1.0)  # Camera mất kết nối: chờ 1s trước khi thử lại
                     continue
             else:
+                # Kiểm tra có client đang theo dõi luồng (WebSocket/MJPEG) hay không
+                viewers = streamer.get_active_viewers_count() if hasattr(streamer, "get_active_viewers_count") else 0
+                if viewers > 0:
+                    time.sleep(0.100)  # 10 FPS khi có người xem
+                else:
+                    time.sleep(0.500)  # 2 FPS ở chế độ chờ (tiết kiệm 99% CPU)
+
                 # Tạo khung hình mô phỏng chuyển động trong môi trường lab
                 frame = self._generate_lab_synthetic_frame(now)
-                time.sleep(0.033)  # Điều chỉnh tốc độ chuẩn 30 FPS
 
             # 2. Suy luận thị giác máy tính: RTMO-s Single-pass
             detections = self.pose_engine.detect(frame)
