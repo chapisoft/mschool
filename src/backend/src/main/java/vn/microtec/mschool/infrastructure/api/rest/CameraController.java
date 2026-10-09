@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import vn.microtec.mschool.application.service.CameraDiscoveryService;
 import vn.microtec.mschool.application.service.I18nService;
+import vn.microtec.mschool.application.port.out.CameraDevicePort;
 import vn.microtec.mschool.domain.camera.DeviceCamera;
 import vn.microtec.mschool.domain.enums.CameraStatus;
 import vn.microtec.mschool.domain.enums.ConnectionStatus;
@@ -21,8 +22,11 @@ import vn.microtec.mschool.infrastructure.api.dto.QuickOnboardCameraRequest;
 import vn.microtec.mschool.infrastructure.persistence.DeviceCameraRepository;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +43,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class CameraController {
 
-    private static final java.util.Set<Process> ACTIVE_STREAM_PROCESSES = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final java.util.Set<Process> ACTIVE_STREAM_PROCESSES = java.util.concurrent.ConcurrentHashMap
+            .newKeySet();
 
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -56,6 +61,7 @@ public class CameraController {
 
     private final DeviceCameraRepository cameraRepository;
     private final CameraDiscoveryService cameraDiscoveryService;
+    private final CameraDevicePort cameraDevicePort;
     private final I18nService i18nService;
 
     @GetMapping
@@ -376,12 +382,26 @@ public class CameraController {
     public ResponseEntity<?> getCameraSnapshot(@PathVariable String id) {
         DeviceCamera cam = cameraRepository.findById(id).orElse(null);
         if (cam == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.builder()
-                            .status(ResponseStatus.ERROR)
-                            .code(ErrorCode.ATT_ERR_RECORD_NOT_FOUND.name())
-                            .message(i18nService.getMessage("camera.notfound", "Không tìm thấy thiết bị camera"))
-                            .build());
+            cam = cameraRepository.findAll().stream()
+                    .filter(c -> c.getId().equalsIgnoreCase(id)
+                            || c.getId().replace('_', '-').equalsIgnoreCase(id.replace('_', '-')))
+                    .findFirst().orElse(null);
+        }
+        if (cam == null) {
+            cam = DeviceCamera.builder()
+                    .id(id)
+                    .name(id)
+                    .rtspUrl("")
+                    .build();
+        }
+
+        // 1. Ưu tiên trích xuất khung hình qua Camera Ingestion Worker
+        byte[] workerFrame = cameraDevicePort.captureFrame(cam);
+        if (workerFrame != null && workerFrame.length > 0) {
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                    .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
+                    .body(workerFrame);
         }
 
         String rawRtspUrl = cam.getRtspUrl();
@@ -408,8 +428,7 @@ public class CameraController {
                     "-q:v", "2",
                     "-f", "image2",
                     "-c:v", "mjpeg",
-                    "pipe:1"
-            );
+                    "pipe:1");
             pb.redirectError(ProcessBuilder.Redirect.DISCARD);
             Process process = pb.start();
 
@@ -426,14 +445,16 @@ public class CameraController {
                         .body(ApiResponse.builder()
                                 .status(ResponseStatus.ERROR)
                                 .code(ErrorCode.ERR_CAMERA_STREAM_FAILED.name())
-                                .message(i18nService.getMessage("error.camera_stream_failed", "Hết thời gian kết nối luồng camera"))
+                                .message(i18nService.getMessage("error.camera_stream_failed",
+                                        "Hết thời gian kết nối luồng camera"))
                                 .build());
             }
 
             int exitCode = process.exitValue();
             if (exitCode == 0 && imageBytes != null && imageBytes.length > 0) {
                 return ResponseEntity.ok()
-                        .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                        .header(org.springframework.http.HttpHeaders.CACHE_CONTROL,
+                                "no-cache, no-store, must-revalidate")
                         .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
                         .body(imageBytes);
             }
@@ -444,12 +465,14 @@ public class CameraController {
             }
             log.warn("FFmpeg snapshot failed for camera {} (exit={}): {}", id, exitCode, errorMsg);
 
-            if (errorMsg.contains("401") || errorMsg.contains("Unauthorized") || errorMsg.contains("authorization failed")) {
+            if (errorMsg.contains("401") || errorMsg.contains("Unauthorized")
+                    || errorMsg.contains("authorization failed")) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.builder()
                                 .status(ResponseStatus.ERROR)
                                 .code(ErrorCode.ERR_CAMERA_RTSP_UNAUTHORIZED.name())
-                                .message(i18nService.getMessage("error.camera_rtsp_unauthorized", "Lỗi xác thực RTSP: Sai tài khoản hoặc mật khẩu camera"))
+                                .message(i18nService.getMessage("error.camera_rtsp_unauthorized",
+                                        "Lỗi xác thực RTSP: Sai tài khoản hoặc mật khẩu camera"))
                                 .build());
             }
 
@@ -457,7 +480,8 @@ public class CameraController {
                     .body(ApiResponse.builder()
                             .status(ResponseStatus.ERROR)
                             .code(ErrorCode.ERR_CAMERA_STREAM_FAILED.name())
-                            .message(i18nService.getMessage("error.camera_stream_failed", "Không thể trích xuất khung hình từ luồng camera"))
+                            .message(i18nService.getMessage("error.camera_stream_failed",
+                                    "Không thể trích xuất khung hình từ luồng camera"))
                             .build());
 
         } catch (Exception e) {
@@ -466,7 +490,8 @@ public class CameraController {
                     .body(ApiResponse.builder()
                             .status(ResponseStatus.ERROR)
                             .code(ErrorCode.ERR_SYSTEM_INTERNAL.name())
-                            .message(i18nService.getMessage("error.system_internal", "Lỗi nội bộ khi trích xuất khung hình"))
+                            .message(i18nService.getMessage("error.system_internal",
+                                    "Lỗi nội bộ khi trích xuất khung hình"))
                             .build());
         }
     }
@@ -475,6 +500,43 @@ public class CameraController {
     public ResponseEntity<StreamingResponseBody> streamCamera(
             @PathVariable String id,
             @RequestParam(required = false, defaultValue = "false") boolean hd) {
+
+        // 1. Thử chuyển tiếp (proxy) trực tiếp từ AI Camera Ingestion Worker
+        String[] candidateUrls = {
+                "http://mschool-camera-worker:8090/api/v1/cameras/" + id + "/stream",
+                "http://mschool-camera-worker:8090/api/v1/cameras/" + id.toLowerCase().replace('_', '-') + "/stream",
+                "http://127.0.0.1:8090/api/v1/cameras/" + id + "/stream"
+        };
+        for (String cUrl : candidateUrls) {
+            try {
+                URL u = new URL(cUrl);
+                HttpURLConnection c = (HttpURLConnection) u.openConnection();
+                c.setConnectTimeout(800);
+                c.setReadTimeout(15000);
+                c.setRequestMethod("GET");
+                if (c.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    return ResponseEntity.ok()
+                            .contentType(org.springframework.http.MediaType
+                                    .parseMediaType("multipart/x-mixed-replace; boundary=frame"))
+                            .body(outputStream -> {
+                                try (InputStream is = c.getInputStream()) {
+                                    byte[] buf = new byte[16384];
+                                    int n;
+                                    while ((n = is.read(buf)) != -1) {
+                                        outputStream.write(buf, 0, n);
+                                        outputStream.flush();
+                                    }
+                                } catch (Exception ignored) {
+                                } finally {
+                                    c.disconnect();
+                                }
+                            });
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        // 2. Dự phòng: Sử dụng ffmpeg giải mã RTSP trực tiếp
         DeviceCamera cam = cameraRepository.findById(id).orElse(null);
         if (cam == null) {
             return ResponseEntity.notFound().build();
@@ -507,8 +569,7 @@ public class CameraController {
                         "-f", "mpjpeg",
                         "-q:v", "3",
                         "-r", "20",
-                        "pipe:1"
-                );
+                        "pipe:1");
                 pb.redirectError(ProcessBuilder.Redirect.DISCARD);
                 process = pb.start();
                 ACTIVE_STREAM_PROCESSES.add(process);
@@ -536,7 +597,8 @@ public class CameraController {
         };
 
         return ResponseEntity.ok()
-                .contentType(org.springframework.http.MediaType.parseMediaType("multipart/x-mixed-replace; boundary=ffmpeg"))
+                .contentType(
+                        org.springframework.http.MediaType.parseMediaType("multipart/x-mixed-replace; boundary=ffmpeg"))
                 .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
                 .header(org.springframework.http.HttpHeaders.PRAGMA, "no-cache")
                 .header(org.springframework.http.HttpHeaders.EXPIRES, "0")
@@ -580,4 +642,3 @@ public class CameraController {
         }
     }
 }
-

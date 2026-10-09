@@ -185,3 +185,33 @@ export enum SystemConfigGroup {
   GENERAL = 'GENERAL',
 }
 
+export enum RecognitionTabMode {
+  DEVICE = 'device',
+  IP_CAMERA = 'ip_camera',
+  UPLOAD = 'upload',
+}
+
+export enum FaceAngleType {
+  STRAIGHT = 'straight',
+  LEFT = 'left',
+  RIGHT = 'right',
+  UP = 'up',
+  DOWN = 'down',
+  AUTO = 'auto',
+}
+
+export enum DeviceCameraSource {
+  LOCAL_DEVICE = 'CAM_LOCAL_DEVICE',
+}
+
+export enum BiometricFeedbackCode {
+  CAMERA_CAPTURE_FAILED = 'CAMERA_CAPTURE_FAILED',
+  IMAGE_EMPTY = 'IMAGE_EMPTY',
+  FACE_NOT_DETECTED = 'FACE_NOT_DETECTED',
+  FACE_TOO_BLURRED = 'FACE_TOO_BLURRED',
+  MATCH_SUCCESS = 'MATCH_SUCCESS',
+  NOT_MATCHED = 'NOT_MATCHED',
+}
+
+
+

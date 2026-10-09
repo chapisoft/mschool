@@ -51,20 +51,70 @@ public class CameraDeviceAdapter implements CameraDevicePort {
     private static final int FFMPEG_TIMEOUT_SECONDS = 4;
     private static final int RECONNECT_DELAY_MS = 5000;
 
+    @org.springframework.beans.factory.annotation.Value("${app.camera-worker.url:http://mschool-camera-worker:8090}")
+    private String cameraWorkerBaseUrl;
+
     @Override
     public byte[] captureFrame(DeviceCamera camera) {
-        if (camera == null || camera.getRtspUrl() == null || camera.getRtspUrl().trim().isEmpty()) {
+        if (camera == null) {
             return null;
         }
 
-        // 1. Thử lấy snapshot trực tiếp qua giao thức HTTP ISAPI của camera
+        // 1. Ưu tiên trích xuất khung hình từ Camera Ingestion Worker nội bộ (AI Worker cổng 8090)
+        byte[] workerSnapshot = tryCaptureFromCameraWorker(camera.getId());
+        if (workerSnapshot != null && workerSnapshot.length > SNAPSHOT_MIN_BYTE_SIZE) {
+            return workerSnapshot;
+        }
+
+        if (camera.getRtspUrl() == null || camera.getRtspUrl().trim().isEmpty()) {
+            return null;
+        }
+
+        // 2. Thử lấy snapshot trực tiếp qua giao thức HTTP ISAPI của camera
         byte[] snapshot = tryCaptureHttpSnapshot(camera);
         if (snapshot != null && snapshot.length > SNAPSHOT_MIN_BYTE_SIZE) {
             return snapshot;
         }
 
-        // 2. Dự phòng: Sử dụng ffmpeg giải mã luồng RTSP
+        // 3. Dự phòng: Sử dụng ffmpeg giải mã luồng RTSP
         return captureFrameViaFfmpeg(camera);
+    }
+
+    private byte[] tryCaptureFromCameraWorker(String cameraId) {
+        if (cameraId == null || cameraId.trim().isEmpty()) {
+            return null;
+        }
+        String base = (cameraWorkerBaseUrl != null && !cameraWorkerBaseUrl.trim().isEmpty())
+                ? cameraWorkerBaseUrl.trim()
+                : "http://mschool-camera-worker:8090";
+
+        String[] candidateUrls = {
+                base + "/api/v1/cameras/" + cameraId + "/snapshot",
+                base + "/api/v1/cameras/" + cameraId.toLowerCase().replace('_', '-') + "/snapshot",
+                base + "/api/v1/cameras/" + cameraId.toUpperCase().replace('-', '_') + "/snapshot",
+                "http://mschool-camera-worker:8090/api/v1/cameras/" + cameraId + "/snapshot",
+                "http://127.0.0.1:8090/api/v1/cameras/" + cameraId + "/snapshot"
+        };
+
+        for (String urlStr : candidateUrls) {
+            try {
+                URL url = new URL(urlStr);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(1000);
+                conn.setReadTimeout(2000);
+                conn.setRequestMethod("GET");
+                if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    try (InputStream is = conn.getInputStream()) {
+                        byte[] data = is.readAllBytes();
+                        if (data != null && data.length > SNAPSHOT_MIN_BYTE_SIZE) {
+                            return data;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
     }
 
     @Override

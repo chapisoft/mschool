@@ -218,7 +218,7 @@ public class MiaiClientAdapter {
             FaceEnrollAiRequest req = FaceEnrollAiRequest.builder()
                     .image_base64(cleanBase64)
                     .angle_type(angleType != null ? angleType : "straight")
-                    .min_quality(0.80)
+                    .min_quality(0.60)
                     .select_largest(true)
                     .build();
 

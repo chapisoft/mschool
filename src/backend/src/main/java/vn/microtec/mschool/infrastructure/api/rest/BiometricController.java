@@ -11,13 +11,18 @@ import vn.microtec.mschool.domain.enums.ResponseStatus;
 import vn.microtec.mschool.domain.enums.SubjectType;
 import vn.microtec.mschool.infrastructure.adapter.MiaiClientAdapter;
 import vn.microtec.mschool.infrastructure.api.dto.ApiResponse;
+import vn.microtec.mschool.infrastructure.api.dto.AssignFaceRequest;
+import vn.microtec.mschool.infrastructure.api.dto.CreateProfileRequest;
+import vn.microtec.mschool.infrastructure.api.dto.PhotoChunkRequest;
+import vn.microtec.mschool.infrastructure.api.dto.TestRecognitionRequest;
+import vn.microtec.mschool.infrastructure.api.dto.UpdateProfileRequest;
+import vn.microtec.mschool.infrastructure.api.dto.VerifyAndExtractRequest;
 import vn.microtec.mschool.infrastructure.persistence.FaceBiometricProfileRepository;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -52,49 +57,7 @@ public class BiometricController {
     private final JdbcTemplate jdbcTemplate;
     private final FaceRecognitionService faceRecognitionService;
     private final AutoFaceAttendanceWorker autoFaceAttendanceWorker;
-
-    @Getter
-    @Setter
-    public static class TestRecognitionRequest {
-        private String imageBase64;
-        private Double minThreshold;
-        private String cameraId;
-    }
-
-    @Getter
-    @Setter
-    public static class CreateProfileRequest {
-        private String identityCode;
-        private String fullName;
-        private SubjectType subjectType;
-        private String departmentOrClass;
-        private Double qualityScore;
-        private List<Double> embeddingPrimary;
-        private List<Double> embeddingLeft;
-        private List<Double> embeddingRight;
-    }
-
-    @Getter
-    @Setter
-    public static class UpdateProfileRequest {
-        private String fullName;
-        private SubjectType subjectType;
-        private String departmentOrClass;
-        private Double qualityScore;
-        private Boolean isActive;
-        private String imageBase64;
-        private String angleType;
-        private List<Double> embeddingPrimary;
-        private List<Double> embeddingLeft;
-        private List<Double> embeddingRight;
-    }
-
-    @Getter
-    @Setter
-    public static class AssignFaceRequest {
-        private String imageBase64;
-        private String angleType;
-    }
+    private final StringRedisTemplate redisTemplate;
 
     @GetMapping("/profiles")
     public ResponseEntity<ApiResponse<List<FaceBiometricProfile>>> getProfiles(
@@ -154,13 +117,11 @@ public class BiometricController {
      */
     @PostMapping("/ai/verify-and-extract")
     public ResponseEntity<ApiResponse<MiaiClientAdapter.FaceEnrollAiResponse>> verifyAndExtractAi(
-            @RequestBody Map<String, Object> payload) {
+            @RequestBody VerifyAndExtractRequest req) {
         try {
-            String imageBase64 = payload != null && payload.get("imageBase64") != null
-                    ? payload.get("imageBase64").toString()
-                    : null;
-            String angleType = payload != null && payload.get("angleType") != null
-                    ? payload.get("angleType").toString()
+            String imageBase64 = req != null ? req.getImageBase64() : null;
+            String angleType = req != null && req.getAngleType() != null
+                    ? req.getAngleType()
                     : "straight";
 
             if (imageBase64 == null || imageBase64.trim().isEmpty()) {
@@ -228,12 +189,18 @@ public class BiometricController {
 
         double score = req.getQualityScore() != null ? req.getQualityScore() : 0.95;
 
+        String photoStraight = req.getPhotoStraight() != null && !req.getPhotoStraight().trim().isEmpty()
+                ? req.getPhotoStraight() : req.getImageBase64();
+
         FaceBiometricProfile profile = FaceBiometricProfile.builder()
                 .identityCode(req.getIdentityCode().trim().toUpperCase())
                 .fullName(req.getFullName().trim())
                 .subjectType(req.getSubjectType() != null ? req.getSubjectType() : SubjectType.STUDENT)
                 .departmentOrClass(req.getDepartmentOrClass() != null ? req.getDepartmentOrClass() : "10A1")
                 .qualityScore(score)
+                .photoStraight(photoStraight)
+                .photoLeft(req.getPhotoLeft())
+                .photoRight(req.getPhotoRight())
                 .isActive(true)
                 .isDeleted(false)
                 .createdAt(OffsetDateTime.now())
@@ -292,116 +259,135 @@ public class BiometricController {
     public ResponseEntity<ApiResponse<FaceBiometricProfile>> updateProfile(
             @PathVariable String id,
             @RequestBody UpdateProfileRequest req) {
-        return findProfileByIdOrCode(id)
-                .map(profile -> {
-                    UUID profileId = profile.getId();
-                    if (req.getFullName() != null && !req.getFullName().trim().isEmpty()) {
-                        profile.setFullName(req.getFullName().trim());
-                    }
-                    if (req.getSubjectType() != null) {
-                        profile.setSubjectType(req.getSubjectType());
-                    }
-                    if (req.getDepartmentOrClass() != null) {
-                        profile.setDepartmentOrClass(req.getDepartmentOrClass().trim());
-                    }
-                    if (req.getQualityScore() != null) {
-                        profile.setQualityScore(req.getQualityScore());
-                    }
-                    if (req.getIsActive() != null) {
-                        profile.setIsActive(req.getIsActive());
-                    }
+        try {
+            return findProfileByIdOrCode(id)
+                    .map(profile -> {
+                        UUID profileId = profile.getId();
+                        if (req.getFullName() != null && !req.getFullName().trim().isEmpty()) {
+                            profile.setFullName(req.getFullName().trim());
+                        }
+                        if (req.getSubjectType() != null) {
+                            profile.setSubjectType(req.getSubjectType());
+                        }
+                        if (req.getDepartmentOrClass() != null) {
+                            profile.setDepartmentOrClass(req.getDepartmentOrClass().trim());
+                        }
+                        if (req.getQualityScore() != null) {
+                            profile.setQualityScore(req.getQualityScore());
+                        }
+                        if (req.getIsActive() != null) {
+                            profile.setIsActive(req.getIsActive());
+                        }
 
-                    // Cập nhật an toàn véc-tơ nếu client gửi lên
-                    if (req.getEmbeddingPrimary() != null && !req.getEmbeddingPrimary().isEmpty()) {
-                        String primaryStr = formatVector(req.getEmbeddingPrimary(), 512);
-                        if (primaryStr != null) {
-                            try {
-                                jdbcTemplate.update(
-                                        "UPDATE face_biometric_profiles SET embedding_primary = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                                        primaryStr, profileId);
-                                log.info("Đã cập nhật embedding_primary từ client cho hồ sơ ID: {}", profileId);
-                            } catch (Exception ex) {
-                                log.warn("Không thể cập nhật embedding_primary cho {}: {}", profileId, ex.getMessage());
-                            }
+                        if (req.getPhotoStraight() != null && !req.getPhotoStraight().trim().isEmpty()) {
+                            profile.setPhotoStraight(req.getPhotoStraight());
                         }
-                    }
-                    if (req.getEmbeddingLeft() != null && !req.getEmbeddingLeft().isEmpty()) {
-                        String leftStr = formatVector(req.getEmbeddingLeft(), 512);
-                        if (leftStr != null) {
-                            try {
-                                jdbcTemplate.update(
-                                        "UPDATE face_biometric_profiles SET embedding_left = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                                        leftStr, profileId);
-                                log.info("Đã cập nhật embedding_left từ client cho hồ sơ ID: {}", profileId);
-                            } catch (Exception ex) {
-                                log.warn("Không thể cập nhật embedding_left cho {}: {}", profileId, ex.getMessage());
-                            }
+                        if (req.getPhotoLeft() != null && !req.getPhotoLeft().trim().isEmpty()) {
+                            profile.setPhotoLeft(req.getPhotoLeft());
                         }
-                    }
-                    if (req.getEmbeddingRight() != null && !req.getEmbeddingRight().isEmpty()) {
-                        String rightStr = formatVector(req.getEmbeddingRight(), 512);
-                        if (rightStr != null) {
-                            try {
-                                jdbcTemplate.update(
-                                        "UPDATE face_biometric_profiles SET embedding_right = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                                        rightStr, profileId);
-                                log.info("Đã cập nhật embedding_right từ client cho hồ sơ ID: {}", profileId);
-                            } catch (Exception ex) {
-                                log.warn("Không thể cập nhật embedding_right cho {}: {}", profileId, ex.getMessage());
-                            }
+                        if (req.getPhotoRight() != null && !req.getPhotoRight().trim().isEmpty()) {
+                            profile.setPhotoRight(req.getPhotoRight());
                         }
-                    }
 
-                    // Nếu có hình ảnh khuôn mặt mới kèm theo mà chưa có vector, tiến hành trích
-                    // xuất đặc trưng qua miai
-                    if ((req.getEmbeddingPrimary() == null || req.getEmbeddingPrimary().isEmpty())
-                            && req.getImageBase64() != null && !req.getImageBase64().trim().isEmpty()) {
-                        try {
-                            MiaiClientAdapter.SurveillanceRecognizeResponse survResp = miaiClientAdapter
-                                    .recognizeSurveillanceStream(req.getImageBase64(), 0.25, 0.20);
-                            if (survResp != null && survResp.getFaces() != null && !survResp.getFaces().isEmpty() &&
-                                    survResp.getFaces().get(0).getEmbedding() != null) {
-                                MiaiClientAdapter.SurveillanceFaceItemDto face = survResp.getFaces().get(0);
-                                String vectorStr = formatVector(face.getEmbedding(), 512);
-                                String angle = req.getAngleType() != null ? req.getAngleType().toLowerCase()
-                                        : "straight";
-                                String column = "embedding_primary";
-                                if ("left".equals(angle)) {
-                                    column = "embedding_left";
-                                } else if ("right".equals(angle)) {
-                                    column = "embedding_right";
+                        // Cập nhật an toàn véc-tơ nếu client gửi lên
+                        if (req.getEmbeddingPrimary() != null && !req.getEmbeddingPrimary().isEmpty()) {
+                            String primaryStr = formatVector(req.getEmbeddingPrimary(), 512);
+                            if (primaryStr != null) {
+                                try {
+                                    jdbcTemplate.update(
+                                            "UPDATE face_biometric_profiles SET embedding_primary = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                            primaryStr, profileId);
+                                    log.info("Đã cập nhật embedding_primary từ client cho hồ sơ ID: {}", profileId);
+                                } catch (Exception ex) {
+                                    log.warn("Không thể cập nhật embedding_primary cho {}: {}", profileId, ex.getMessage());
                                 }
-                                double qScore = face.getQualityScore() != null ? face.getQualityScore() : 0.85;
-                                profile.setQualityScore(Math.max(
-                                        profile.getQualityScore() != null ? profile.getQualityScore() : 0.0, qScore));
-
-                                String sql = String.format(
-                                        "UPDATE face_biometric_profiles SET %s = ?::vector, quality_score = GREATEST(quality_score, ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                                        column);
-                                jdbcTemplate.update(sql, vectorStr, qScore, profileId);
-                                log.info("Đã cập nhật vector khuôn mặt ({}) cho hồ sơ ID: {}", column, profileId);
                             }
-                        } catch (Exception e) {
-                            log.error("Không thể trích xuất vector khi cập nhật hồ sơ {}: {}", profileId, e.getMessage());
                         }
-                    }
+                        if (req.getEmbeddingLeft() != null && !req.getEmbeddingLeft().isEmpty()) {
+                            String leftStr = formatVector(req.getEmbeddingLeft(), 512);
+                            if (leftStr != null) {
+                                try {
+                                    jdbcTemplate.update(
+                                            "UPDATE face_biometric_profiles SET embedding_left = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                            leftStr, profileId);
+                                    log.info("Đã cập nhật embedding_left từ client cho hồ sơ ID: {}", profileId);
+                                } catch (Exception ex) {
+                                    log.warn("Không thể cập nhật embedding_left cho {}: {}", profileId, ex.getMessage());
+                                }
+                            }
+                        }
+                        if (req.getEmbeddingRight() != null && !req.getEmbeddingRight().isEmpty()) {
+                            String rightStr = formatVector(req.getEmbeddingRight(), 512);
+                            if (rightStr != null) {
+                                try {
+                                    jdbcTemplate.update(
+                                            "UPDATE face_biometric_profiles SET embedding_right = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                            rightStr, profileId);
+                                    log.info("Đã cập nhật embedding_right từ client cho hồ sơ ID: {}", profileId);
+                                } catch (Exception ex) {
+                                    log.warn("Không thể cập nhật embedding_right cho {}: {}", profileId, ex.getMessage());
+                                }
+                            }
+                        }
 
-                    profile.setUpdatedAt(OffsetDateTime.now());
-                    FaceBiometricProfile saved = profileRepository.save(profile);
-                    return ResponseEntity.ok(ApiResponse.<FaceBiometricProfile>builder()
-                            .status(ResponseStatus.SUCCESS)
-                            .code(ErrorCode.SYS_SUCCESS_0000.name())
-                            .message(i18nService.getMessage("biometric.update.success",
-                                     "Cập nhật hồ sơ sinh trắc học thành công"))
-                            .data(saved)
-                            .build());
-                })
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.<FaceBiometricProfile>builder()
-                                .status(ResponseStatus.ERROR)
-                                .code(ErrorCode.ATT_ERR_RECORD_NOT_FOUND.name())
-                                .message(i18nService.getMessage("biometric.notfound", "Không tìm thấy hồ sơ sinh trắc"))
-                                .build()));
+                        // Nếu có hình ảnh khuôn mặt mới kèm theo mà chưa có vector, tiến hành trích
+                        // xuất đặc trưng qua miai
+                        if ((req.getEmbeddingPrimary() == null || req.getEmbeddingPrimary().isEmpty())
+                                && req.getImageBase64() != null && !req.getImageBase64().trim().isEmpty()) {
+                            try {
+                                MiaiClientAdapter.SurveillanceRecognizeResponse survResp = miaiClientAdapter
+                                        .recognizeSurveillanceStream(req.getImageBase64(), 0.25, 0.20);
+                                if (survResp != null && survResp.getFaces() != null && !survResp.getFaces().isEmpty() &&
+                                        survResp.getFaces().get(0).getEmbedding() != null) {
+                                    MiaiClientAdapter.SurveillanceFaceItemDto face = survResp.getFaces().get(0);
+                                    String vectorStr = formatVector(face.getEmbedding(), 512);
+                                    String angle = req.getAngleType() != null ? req.getAngleType().toLowerCase()
+                                            : "straight";
+                                    String column = "embedding_primary";
+                                    if ("left".equals(angle)) {
+                                        column = "embedding_left";
+                                    } else if ("right".equals(angle)) {
+                                        column = "embedding_right";
+                                    }
+                                    double qScore = face.getQualityScore() != null ? face.getQualityScore() : 0.85;
+                                    profile.setQualityScore(Math.max(
+                                            profile.getQualityScore() != null ? profile.getQualityScore() : 0.0, qScore));
+
+                                    String sql = String.format(
+                                            "UPDATE face_biometric_profiles SET %s = ?::vector, quality_score = GREATEST(quality_score, ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                            column);
+                                    jdbcTemplate.update(sql, vectorStr, qScore, profileId);
+                                    log.info("Đã cập nhật vector khuôn mặt ({}) cho hồ sơ ID: {}", column, profileId);
+                                }
+                            } catch (Exception e) {
+                                log.error("Không thể trích xuất vector khi cập nhật hồ sơ {}: {}", profileId, e.getMessage());
+                            }
+                        }
+
+                        profile.setUpdatedAt(OffsetDateTime.now());
+                        FaceBiometricProfile saved = profileRepository.save(profile);
+                        return ResponseEntity.ok(ApiResponse.<FaceBiometricProfile>builder()
+                                .status(ResponseStatus.SUCCESS)
+                                .code(ErrorCode.SYS_SUCCESS_0000.name())
+                                .message(i18nService.getMessage("biometric.update.success",
+                                         "Cập nhật hồ sơ sinh trắc học thành công"))
+                                .data(saved)
+                                .build());
+                    })
+                    .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(ApiResponse.<FaceBiometricProfile>builder()
+                                    .status(ResponseStatus.ERROR)
+                                    .code(ErrorCode.ATT_ERR_RECORD_NOT_FOUND.name())
+                                    .message(i18nService.getMessage("biometric.notfound", "Không tìm thấy hồ sơ sinh trắc"))
+                                    .build()));
+        } catch (Throwable t) {
+            log.error("Lỗi khi cập nhật hồ sơ sinh trắc {}: {}", id, t.getMessage(), t);
+            return ResponseEntity.badRequest().body(ApiResponse.<FaceBiometricProfile>builder()
+                    .status(ResponseStatus.ERROR)
+                    .code(ErrorCode.ERR_PARAMETERS_INVALID.name())
+                    .message("Không thể cập nhật hồ sơ: " + t.getMessage())
+                    .build());
+        }
     }
 
     @DeleteMapping("/profiles/{id}")
@@ -542,6 +528,116 @@ public class BiometricController {
     }
 
     /**
+     * Tải ảnh chân dung độ nét cao theo cơ chế phân đoạn (Chunked Base64 Upload)
+     * Vượt qua giới hạn đệm Nginx Proxy Gateway, ghép nối tự động và lưu ảnh sắc nét vào CSDL.
+     */
+    @PostMapping("/profiles/{id}/photo-chunk")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadPhotoChunk(
+            @PathVariable String id,
+            @RequestBody PhotoChunkRequest req) {
+        if (req == null || req.getChunkData() == null || req.getChunkIndex() == null || req.getTotalChunks() == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.<Map<String, Object>>builder()
+                    .status(ResponseStatus.ERROR)
+                    .code(ErrorCode.ERR_PARAMETERS_INVALID.name())
+                    .message("Dữ liệu phân đoạn ảnh không hợp lệ")
+                    .build());
+        }
+
+        return findProfileByIdOrCode(id)
+                .map(profile -> {
+                    String angle = req.getAngleType() != null ? req.getAngleType().toLowerCase() : "straight";
+                    String redisKey = "biometric:upload:" + profile.getId() + ":" + angle;
+
+                    if (req.getChunkIndex() == 0) {
+                        redisTemplate.delete(redisKey);
+                    }
+
+                    redisTemplate.opsForHash().put(redisKey, String.valueOf(req.getChunkIndex()), req.getChunkData());
+                    redisTemplate.expire(redisKey, java.time.Duration.ofMinutes(5));
+
+                    Long currentCount = redisTemplate.opsForHash().size(redisKey);
+                    boolean isCompleted = currentCount != null && currentCount >= req.getTotalChunks();
+
+                    if (!isCompleted) {
+                        return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                                .status(ResponseStatus.SUCCESS)
+                                .code(ErrorCode.SYS_SUCCESS_0000.name())
+                                .message("Đã nhận phân đoạn " + (req.getChunkIndex() + 1) + "/" + req.getTotalChunks())
+                                .data(Map.of("chunkIndex", req.getChunkIndex(), "isCompleted", false))
+                                .build());
+                    }
+
+                    // Đã nhận đủ toàn bộ phân đoạn, tiến hành ghép nối ảnh sắc nét theo đúng thứ tự 0..N-1
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < req.getTotalChunks(); i++) {
+                        Object part = redisTemplate.opsForHash().get(redisKey, String.valueOf(i));
+                        if (part != null) {
+                            sb.append(part.toString());
+                        }
+                    }
+                    redisTemplate.delete(redisKey);
+
+                    String fullBase64 = sb.toString();
+                    String cleanBase64 = fullBase64;
+                    if (cleanBase64.contains(",")) {
+                        cleanBase64 = cleanBase64.substring(cleanBase64.indexOf(",") + 1);
+                    }
+
+                    String photoCol = "photo_straight";
+                    String embedCol = "embedding_primary";
+                    if ("left".equals(angle)) {
+                        photoCol = "photo_left";
+                        embedCol = "embedding_left";
+                    } else if ("right".equals(angle)) {
+                        photoCol = "photo_right";
+                        embedCol = "embedding_right";
+                    }
+
+                    // Cập nhật ảnh chất lượng cao vào DB
+                    String sql = String.format(
+                            "UPDATE face_biometric_profiles SET %s = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                            photoCol);
+                    jdbcTemplate.update(sql, cleanBase64, profile.getId());
+
+                    // Trích xuất vector 512D chất lượng cao qua miai từ ảnh sắc nét
+                    try {
+                        MiaiClientAdapter.SurveillanceRecognizeResponse survResp = miaiClientAdapter
+                                .recognizeSurveillanceStream(fullBase64, 0.25, 0.15);
+                        if (survResp != null && survResp.getFaces() != null && !survResp.getFaces().isEmpty()
+                                && survResp.getFaces().get(0).getEmbedding() != null) {
+                            MiaiClientAdapter.SurveillanceFaceItemDto face = survResp.getFaces().get(0);
+                            String vectorStr = formatVector(face.getEmbedding(), 512);
+                            double qScore = face.getQualityScore() != null ? face.getQualityScore() : 0.95;
+
+                            String embedSql = String.format(
+                                    "UPDATE face_biometric_profiles SET %s = ?::vector, quality_score = GREATEST(quality_score, ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                    embedCol);
+                            jdbcTemplate.update(embedSql, vectorStr, qScore, profile.getId());
+                            log.info("Đã trích xuất và cập nhật vector ({}) thành công cho hồ sơ ID: {}", embedCol, profile.getId());
+                        }
+                    } catch (Exception e) {
+                        log.warn("Không thể trích xuất vector từ ảnh phân đoạn cho hồ sơ {}: {}", profile.getId(), e.getMessage());
+                    }
+
+                    log.info("Hoàn tất ghép nối ảnh sắc nét ({}) dung lượng {} ký tự cho hồ sơ ID: {}",
+                            angle, fullBase64.length(), profile.getId());
+
+                    return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
+                            .status(ResponseStatus.SUCCESS)
+                            .code(ErrorCode.SYS_SUCCESS_0000.name())
+                            .message("Đã lưu ảnh chân dung độ nét cao thành công")
+                            .data(Map.of("isCompleted", true, "photoLength", fullBase64.length(), "angle", angle))
+                            .build());
+                })
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.<Map<String, Object>>builder()
+                                .status(ResponseStatus.ERROR)
+                                .code(ErrorCode.ATT_ERR_RECORD_NOT_FOUND.name())
+                                .message("Không tìm thấy hồ sơ sinh trắc")
+                                .build()));
+    }
+
+    /**
      * Gán / Cập nhật vector khuôn mặt cho hồ sơ từ hình ảnh nhận diện thực tế
      * (Camera hoặc Upload).
      */
@@ -568,7 +664,7 @@ public class BiometricController {
 
         // Trích xuất vector qua miai với độ nhạy giám sát thực tế
         MiaiClientAdapter.SurveillanceRecognizeResponse survResp = miaiClientAdapter
-                .recognizeSurveillanceStream(req.getImageBase64(), 0.25, 0.20);
+                .recognizeSurveillanceStream(req.getImageBase64(), 0.25, 0.15);
 
         if (survResp == null || survResp.getFaces() == null || survResp.getFaces().isEmpty() ||
                 survResp.getFaces().get(0).getEmbedding() == null) {
@@ -581,22 +677,32 @@ public class BiometricController {
 
         MiaiClientAdapter.SurveillanceFaceItemDto face = survResp.getFaces().get(0);
         String vectorStr = formatVector(face.getEmbedding(), 512);
-        String angle = req.getAngleType() != null ? req.getAngleType().toLowerCase() : "straight";
+        String angle = req.getAngleType() != null ? req.getAngleType().toLowerCase() : "auto";
 
+        double yaw = face.getYaw() != null ? face.getYaw() : 0.0;
         String column = "embedding_primary";
-        if ("left".equals(angle)) {
+        String photoColumn = "photo_straight";
+
+        if ("left".equals(angle) || ("auto".equals(angle) && yaw < -8.0)) {
             column = "embedding_left";
-        } else if ("right".equals(angle)) {
+            photoColumn = "photo_left";
+        } else if ("right".equals(angle) || ("auto".equals(angle) && yaw > 8.0)) {
             column = "embedding_right";
+            photoColumn = "photo_right";
+        }
+
+        String cleanBase64 = req.getImageBase64();
+        if (cleanBase64.contains(",")) {
+            cleanBase64 = cleanBase64.substring(cleanBase64.indexOf(",") + 1);
         }
 
         String sql = String.format(
-                "UPDATE face_biometric_profiles SET %s = ?::vector, quality_score = GREATEST(quality_score, ?), updated_at = CURRENT_TIMESTAMP WHERE identity_code = ?",
-                column);
-        jdbcTemplate.update(sql, vectorStr, face.getQualityScore() != null ? face.getQualityScore() : 0.95,
+                "UPDATE face_biometric_profiles SET %s = ?::vector, %s = ?, quality_score = GREATEST(quality_score, ?), updated_at = CURRENT_TIMESTAMP WHERE identity_code = ?",
+                column, photoColumn);
+        jdbcTemplate.update(sql, vectorStr, cleanBase64, face.getQualityScore() != null ? face.getQualityScore() : 0.95,
                 identityCode);
 
-        log.info("Đã gán vector khuôn mặt ({}) thành công cho hồ sơ {}: quality={}, yaw={}",
+        log.info("Đã gán vector khuôn mặt ({}) kèm ảnh chuẩn thành công cho hồ sơ {}: quality={}, yaw={}",
                 column, identityCode, face.getQualityScore(), face.getYaw());
 
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()

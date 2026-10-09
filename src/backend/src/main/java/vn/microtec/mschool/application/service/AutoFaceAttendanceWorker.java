@@ -59,7 +59,7 @@ public class AutoFaceAttendanceWorker {
     @Value("${app.attendance.auto-camera-scan-enabled:false}")
     private boolean defaultEnabled;
 
-    @Value("${app.attendance.face-similarity-threshold:0.65}")
+    @Value("${app.attendance.face-similarity-threshold:0.50}")
     private double faceSimilarityThreshold;
 
     @Value("${app.attendance.burst-duration-ms:8000}")

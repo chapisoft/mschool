@@ -84,12 +84,12 @@ public class FaceRecognitionService {
      * sử dụng mô hình AdaFace IR-50 trích xuất vector 512-D và so khớp trên PostgreSQL pgvector.
      *
      * @param imageBase64  Chuỗi ảnh Base64
-     * @param minThreshold Ngưỡng tương đồng tối thiểu (mặc định 0.65)
+     * @param minThreshold Ngưỡng tương đồng tối thiểu (mặc định 0.50 cho camera giám sát)
      * @return FaceRecognitionResult Kết quả nhận diện chi tiết kèm tọa độ chuẩn hóa và góc xoay
      */
     public FaceRecognitionResult recognizeFaceFromBase64(String imageBase64, Double minThreshold) {
         long startTime = System.currentTimeMillis();
-        double threshold = (minThreshold != null && minThreshold > 0.1 && minThreshold < 1.0) ? minThreshold : 0.65;
+        double threshold = (minThreshold != null && minThreshold > 0.1 && minThreshold < 1.0) ? minThreshold : 0.50;
 
         if (imageBase64 == null || imageBase64.trim().isEmpty()) {
             return FaceRecognitionResult.builder()
@@ -102,9 +102,9 @@ public class FaceRecognitionService {
         }
 
         // 1. Trích xuất đặc trưng và khuôn mặt qua pipeline giám sát CCTV (AdaFace + SCRFD)
-        // Độ nhạy conf 0.30, chất lượng tối thiểu 0.20, hỗ trợ người bước nhanh không nhìn thẳng vào camera
+        // Độ nhạy conf 0.25, chất lượng tối thiểu 0.15, hỗ trợ người bước nhanh không nhìn thẳng vào camera
         MiaiClientAdapter.SurveillanceRecognizeResponse aiResp =
-                miaiClientAdapter.recognizeSurveillanceStream(imageBase64, 0.30, 0.20);
+                miaiClientAdapter.recognizeSurveillanceStream(imageBase64, 0.25, 0.15);
 
         if (aiResp == null || aiResp.getFaces() == null || aiResp.getFaces().isEmpty()) {
             double elapsed = System.currentTimeMillis() - startTime;
@@ -203,6 +203,37 @@ public class FaceRecognitionService {
             double bestSim = best.getSimilarity() != null ? best.getSimilarity() : 0.0;
 
             if (bestSim >= threshold) {
+                // Tự động thích ứng học đa góc (Adaptive Multi-Pose Auto Enrollment)
+                try {
+                    double yaw = primaryFace.getYaw() != null ? primaryFace.getYaw() : 0.0;
+                    double faceQuality = primaryFace.getQualityScore() != null ? primaryFace.getQualityScore() : 0.0;
+                    if (faceQuality >= 0.25) {
+                        if (yaw < -8.0) {
+                            jdbcTemplate.update(
+                                    "UPDATE face_biometric_profiles SET embedding_left = ?::vector, updated_at = CURRENT_TIMESTAMP " +
+                                            "WHERE identity_code = ? AND (embedding_left IS NULL OR ? > quality_score)",
+                                    vectorStr, best.getIdentityCode(), faceQuality);
+                        } else if (yaw > 8.0) {
+                            jdbcTemplate.update(
+                                    "UPDATE face_biometric_profiles SET embedding_right = ?::vector, updated_at = CURRENT_TIMESTAMP " +
+                                            "WHERE identity_code = ? AND (embedding_right IS NULL OR ? > quality_score)",
+                                    vectorStr, best.getIdentityCode(), faceQuality);
+                        } else {
+                            String cleanBase64 = imageBase64;
+                            if (cleanBase64.contains(",")) {
+                                cleanBase64 = cleanBase64.substring(cleanBase64.indexOf(",") + 1);
+                            }
+                            jdbcTemplate.update(
+                                    "UPDATE face_biometric_profiles SET photo_straight = COALESCE(NULLIF(photo_straight, ''), ?), " +
+                                            "quality_score = GREATEST(quality_score, ?), updated_at = CURRENT_TIMESTAMP " +
+                                            "WHERE identity_code = ? AND (photo_straight IS NULL OR length(photo_straight) < 10000)",
+                                    cleanBase64, faceQuality, best.getIdentityCode());
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.warn("Lỗi cập nhật học đa góc tự động cho hồ sơ {}: {}", best.getIdentityCode(), ex.getMessage());
+                }
+
                 return FaceRecognitionResult.builder()
                         .matched(true)
                         .identityCode(best.getIdentityCode())
@@ -275,7 +306,7 @@ public class FaceRecognitionService {
                     .matched(false)
                     .feedbackCode("CAMERA_CAPTURE_FAILED")
                     .feedbackMessage("Không thể trích xuất khung hình từ camera " + cameraId)
-                    .threshold(minThreshold != null ? minThreshold : 0.65)
+                    .threshold(minThreshold != null ? minThreshold : 0.50)
                     .processingTimeMs(0.0)
                     .build();
         }

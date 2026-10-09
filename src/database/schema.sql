@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS face_biometric_profiles (
     embedding_left VECTOR(512),
     embedding_right VECTOR(512),
     quality_score FLOAT NOT NULL,
+    photo_straight TEXT,
+    photo_left TEXT,
+    photo_right TEXT,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

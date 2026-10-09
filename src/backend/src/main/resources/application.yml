@@ -48,7 +48,7 @@ app:
     auto-camera-scan-enabled: ${AUTO_ATTENDANCE_SCAN_ENABLED:false}
     burst-duration-ms: 8000
     burst-extend-ms: 5000
-    face-similarity-threshold: 0.65
+    face-similarity-threshold: 0.50
   outbox:
     polling-interval-ms: 1000
     batch-size: 50
