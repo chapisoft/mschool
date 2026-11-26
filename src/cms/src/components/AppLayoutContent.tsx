@@ -6,9 +6,12 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useAuth } from '@/context/AuthContext';
 
+import { useTranslation } from '@/context/LanguageContext';
+
 export default function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useTranslation();
 
   const isLoginPage = pathname === '/login';
 
@@ -24,7 +27,7 @@ export default function AppLayoutContent({ children }: { children: React.ReactNo
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-3 border-sky-500/30 border-t-sky-500 rounded-full animate-spin" />
           <p className="text-xs text-slate-500 font-medium tracking-wide">
-            Đang xác thực phiên làm việc...
+            {t('login.authenticating')}
           </p>
         </div>
       </div>

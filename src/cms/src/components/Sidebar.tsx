@@ -26,7 +26,6 @@ import MSchoolLogo from '@/components/MSchoolLogo';
 const menuGroups = [
   {
     titleKey: 'nav.groupAttendance',
-    titleDefault: 'Điểm danh & Giám sát',
     items: [
       { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
       { key: 'nav.classroomMatrix', href: '/classroom-matrix', icon: Grid },
@@ -39,7 +38,6 @@ const menuGroups = [
   },
   {
     titleKey: 'nav.groupSystemAdmin',
-    titleDefault: 'Quản trị hệ thống',
     items: [
       { key: 'nav.users', href: '/users', icon: Users },
       { key: 'nav.roles', href: '/roles', icon: KeyRound },
@@ -47,7 +45,6 @@ const menuGroups = [
   },
   {
     titleKey: 'nav.groupConfig',
-    titleDefault: 'Cấu hình & Tích hợp',
     items: [
       { key: 'nav.systemConfig', href: '/system-config', icon: Sliders },
       { key: 'nav.masterData', href: '/master-data', icon: Layers },

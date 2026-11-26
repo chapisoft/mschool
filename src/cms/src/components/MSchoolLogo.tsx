@@ -1,4 +1,7 @@
+'use client';
+
 import React from 'react';
+import { useTranslation } from '@/context/LanguageContext';
 
 interface MSchoolLogoProps {
   size?: number;
@@ -7,6 +10,7 @@ interface MSchoolLogoProps {
 }
 
 export default function MSchoolLogo({ size = 36, className = '', showText = false }: MSchoolLogoProps) {
+  const { t } = useTranslation();
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       {/* Biểu tượng Vector MSCHOOL Đơn giản Tinh tế Màu sắc Tươi sáng */}
@@ -111,7 +115,7 @@ export default function MSchoolLogo({ size = 36, className = '', showText = fals
             </span>
           </div>
           <span className="text-[11px] font-medium tracking-wide text-slate-400">
-            Hệ thống Trường học Thông minh
+            {t('login.systemSubtitle')}
           </span>
         </div>
       )}

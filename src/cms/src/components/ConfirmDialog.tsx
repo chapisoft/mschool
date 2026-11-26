@@ -4,6 +4,8 @@ import React from 'react';
 import { AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
 import Modal from './Modal';
 
+import { useTranslation } from '@/context/LanguageContext';
+
 interface ConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -22,11 +24,14 @@ export default function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmText = 'Xác nhận',
-  cancelText = 'Hủy bỏ',
+  confirmText,
+  cancelText,
   isDangerous = false,
   isLoading = false,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
+  const displayConfirmText = confirmText || t('common.confirm');
+  const displayCancelText = cancelText || t('common.cancel');
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="md">
       <div className="flex items-start gap-4">
@@ -55,7 +60,7 @@ export default function ConfirmDialog({
           disabled={isLoading}
           className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs border border-slate-200 shadow-xs transition-colors"
         >
-          {cancelText}
+          {displayCancelText}
         </button>
         <button
           type="button"
@@ -70,7 +75,7 @@ export default function ConfirmDialog({
           {isLoading && (
             <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           )}
-          <span>{confirmText}</span>
+          <span>{displayConfirmText}</span>
         </button>
       </div>
     </Modal>

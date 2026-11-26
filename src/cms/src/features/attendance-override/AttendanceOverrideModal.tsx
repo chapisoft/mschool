@@ -70,7 +70,7 @@ export default function AttendanceOverrideModal({
         onClose();
       }, 1200);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi gửi yêu cầu điều chỉnh');
+      setErrorMsg(err.message || t('common.errorLoading'));
     } finally {
       setIsSubmitting(false);
     }
@@ -100,7 +100,7 @@ export default function AttendanceOverrideModal({
             <div className="font-semibold text-slate-900 mt-0.5">{studentName} ({identityCode})</div>
           </div>
           <div>
-            <span className="text-slate-500">Lớp học:</span>
+            <span className="text-slate-500">{t('classes.className')}:</span>
             <div className="font-semibold text-slate-900 mt-0.5">{classroomCode}</div>
           </div>
           <div>
@@ -132,9 +132,9 @@ export default function AttendanceOverrideModal({
               onChange={(e) => setNewStatus(e.target.value as AttendanceStatus)}
               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             >
-              <option value={AttendanceStatus.PRESENT}>PRESENT (Có mặt / Bổ sung check-in)</option>
-              <option value={AttendanceStatus.LATE}>LATE (Đến muộn có lý do)</option>
-              <option value={AttendanceStatus.ABSENT}>ABSENT (Vắng có phép)</option>
+              <option value={AttendanceStatus.PRESENT}>{t('overrideModal.statusPresent')}</option>
+              <option value={AttendanceStatus.LATE}>{t('overrideModal.statusLate')}</option>
+              <option value={AttendanceStatus.ABSENT}>{t('overrideModal.statusAbsent')}</option>
             </select>
           </div>
 
@@ -145,10 +145,10 @@ export default function AttendanceOverrideModal({
               onChange={(e) => setReasonCategory(e.target.value as OverrideReasonCategory)}
               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             >
-              <option value={OverrideReasonCategory.MEDICAL_NOTE}>Giấy khám sức khỏe / Đơn bệnh viện</option>
-              <option value={OverrideReasonCategory.FAMILY_EMERGENCY}>Gia đình có việc đột xuất có đơn</option>
-              <option value={OverrideReasonCategory.OFFICIAL_DISPATCH}>Tham gia hoạt động / Đội tuyển trường</option>
-              <option value={OverrideReasonCategory.SYSTEM_ERROR}>Lỗi kỹ thuật thiết bị quét</option>
+              <option value={OverrideReasonCategory.MEDICAL_NOTE}>{t('overrideModal.reasonMedical')}</option>
+              <option value={OverrideReasonCategory.FAMILY_EMERGENCY}>{t('overrideModal.reasonFamily')}</option>
+              <option value={OverrideReasonCategory.OFFICIAL_DISPATCH}>{t('overrideModal.reasonDispatch')}</option>
+              <option value={OverrideReasonCategory.SYSTEM_ERROR}>{t('overrideModal.reasonSystem')}</option>
             </select>
           </div>
 
@@ -158,7 +158,7 @@ export default function AttendanceOverrideModal({
               value={reasonDetail}
               onChange={(e) => setReasonDetail(e.target.value)}
               rows={3}
-              placeholder="Nhập giải trình chi tiết tối thiểu 10 ký tự..."
+              placeholder={t('overrideModal.reasonDetail')}
               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500"
             />
           </div>

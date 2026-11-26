@@ -6,8 +6,10 @@ Maintains persistent track_id, trajectory history and 17-Keypoint motion states.
 import math
 import time
 from enum import Enum, unique
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, Sequence, Union
 import numpy as np
+
+from face_quality import FaceQualityScore, FaceQualityEngine
 
 
 @unique
@@ -38,9 +40,12 @@ class TrackedObject:
         self.keypoints_history: List[np.ndarray] = [initial_kpts.copy()]
         self.timestamps: List[float] = [timestamp]
 
-        # Trạng thái ảnh chất lượng cao phục vụ điểm danh cổng
+        # Trạng thái ảnh chất lượng cao và danh sách Best-shots đa khung hình phục vụ điểm danh cổng
         self.best_frame: Optional[np.ndarray] = None
+        self.best_face_crop: Optional[np.ndarray] = None
         self.best_score: float = 0.0
+        self.best_laplacian_var: float = 0.0
+        self.best_face_candidates: List[Dict[str, Any]] = []
 
         # Các chỉ số động học tư thế
         self.head_yaw_angle: float = 0.0
@@ -89,6 +94,68 @@ class TrackedObject:
 
         # Tính toán các chỉ số động học tư thế
         self._compute_dynamics(kpts, timestamp, dt, desk_surface_y)
+
+    def add_face_candidate(
+        self,
+        face_crop: np.ndarray,
+        full_frame: np.ndarray,
+        quality: FaceQualityScore,
+        timestamp: float,
+        embedding: Optional[np.ndarray] = None,
+        max_candidates: int = 5,
+    ):
+        """
+        Ghi nhận một ứng viên khuôn mặt chất lượng cao vào danh sách Best-shots.
+        Tự động sắp xếp theo điểm chất lượng FQA và duy trì Top-K ảnh sắc nét nhất.
+        """
+        if face_crop is None or face_crop.size == 0:
+            return
+
+        candidate = {
+            "face_crop": face_crop.copy(),
+            "full_frame": full_frame.copy(),
+            "quality": quality,
+            "timestamp": timestamp,
+            "embedding": embedding.copy() if embedding is not None else None,
+        }
+
+        self.best_face_candidates.append(candidate)
+        # Sắp xếp giảm dần theo điểm chất lượng tổng hợp và phương sai Laplacian
+        self.best_face_candidates.sort(
+            key=lambda c: (c["quality"].overall_score, c["quality"].laplacian_var),
+            reverse=True
+        )
+        if len(self.best_face_candidates) > max_candidates:
+            self.best_face_candidates = self.best_face_candidates[:max_candidates]
+
+        # Cập nhật thông tin ứng viên số 1 sắc nét nhất
+        top = self.best_face_candidates[0]
+        if top["quality"].overall_score > self.best_score or top["quality"].laplacian_var > self.best_laplacian_var:
+            self.best_score = float(top["quality"].overall_score)
+            self.best_laplacian_var = float(top["quality"].laplacian_var)
+            self.best_face_crop = top["face_crop"].copy()
+            self.best_frame = top["full_frame"].copy()
+
+    def get_fused_embedding(self) -> Optional[np.ndarray]:
+        """Hợp nhất các vector đặc trưng của các ảnh mặt tốt nhất theo bình quân gia quyền L2."""
+        embeddings = [c["embedding"] for c in self.best_face_candidates if c.get("embedding") is not None]
+        if not embeddings:
+            return None
+        weights = [c["quality"].overall_score for c in self.best_face_candidates if c.get("embedding") is not None]
+        return FaceQualityEngine.aggregate_multi_frame_embeddings(embeddings, weights)
+
+    def get_crisp_evidence_image(self) -> Optional[np.ndarray]:
+        """Trả về ảnh khuôn mặt sắc nét nhất (Phương sai Laplacian cao nhất) để lưu vết bằng chứng."""
+        if self.best_face_crop is not None:
+            return self.best_face_crop
+        if self.best_face_candidates:
+            sharpest = max(self.best_face_candidates, key=lambda c: c["quality"].laplacian_var)
+            return sharpest["face_crop"]
+        return self.best_frame
+
+    def has_usable_face(self) -> bool:
+        """Kiểm tra xem track đã thu được ít nhất 1 ảnh khuôn mặt đạt chuẩn FQA (không nhòe mờ, góc thẳng)."""
+        return any(c["quality"].is_usable for c in self.best_face_candidates)
 
     def _compute_dynamics(
         self,
@@ -288,7 +355,7 @@ class SpatialTripwire:
         self.in_vector = np.array(in_vector, dtype=np.float32)
         self.in_vector = self.in_vector / (np.linalg.norm(self.in_vector) + 1e-6)
 
-    def classify_direction(self, trajectory: List[Tuple[float, float]]) -> Direction:
+    def classify_direction(self, trajectory: Sequence[Tuple[Union[float, int], Union[float, int]]]) -> Direction:
         """Phân loại hướng di chuyển dựa trên tích vô hướng của vector quỹ đạo và in_vector."""
         if len(trajectory) < 2:
             return Direction.UNKNOWN

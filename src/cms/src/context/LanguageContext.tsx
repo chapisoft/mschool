@@ -12,7 +12,7 @@ export type SupportedLanguage = 'vi' | 'en' | 'zh' | 'ja' | 'ko';
 interface LanguageContextType {
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => void;
-  t: (path: string, fallback?: string) => string;
+  t: (path: string, fallbackOrParams?: string | Record<string, any>, params?: Record<string, any>) => string;
 }
 
 const translations: Record<SupportedLanguage, any> = {
@@ -26,7 +26,10 @@ const translations: Record<SupportedLanguage, any> = {
 const LanguageContext = createContext<LanguageContextType>({
   language: 'vi',
   setLanguage: () => {},
-  t: (path: string, fallback?: string) => fallback || path,
+  t: (path: string, fallbackOrParams?: string | Record<string, any>) => {
+    if (typeof fallbackOrParams === 'string') return fallbackOrParams;
+    return path;
+  },
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
@@ -44,7 +47,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('mschool_language', lang);
   };
 
-  const t = (path: string, fallback?: string): string => {
+  const t = (path: string, fallbackOrParams?: string | Record<string, any>, maybeParams?: Record<string, any>): string => {
+    let fallback: string | undefined;
+    let params: Record<string, any> | undefined;
+
+    if (typeof fallbackOrParams === 'string') {
+      fallback = fallbackOrParams;
+      params = maybeParams;
+    } else if (typeof fallbackOrParams === 'object' && fallbackOrParams !== null) {
+      params = fallbackOrParams;
+    }
+
     const keys = path.split('.');
     let current: any = translations[language];
 
@@ -61,11 +74,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             return fallback || path;
           }
         }
-        return typeof fallbackVal === 'string' ? fallbackVal : (fallback || path);
+        current = fallbackVal;
+        break;
       }
     }
 
-    return typeof current === 'string' ? current : (fallback || path);
+    let result = typeof current === 'string' ? current : (fallback || path);
+
+    if (params && typeof result === 'string') {
+      Object.keys(params).forEach((pKey) => {
+        result = result.replace(new RegExp(`\\{${pKey}\\}`, 'g'), String(params[pKey]));
+      });
+    }
+
+    return result;
   };
 
   return (

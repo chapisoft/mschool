@@ -74,7 +74,8 @@ class RTMOPoseEngine:
                 
                 sess_options = ort.SessionOptions()
                 sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-                sess_options.intra_op_num_threads = 4
+                sess_options.intra_op_num_threads = 1
+                sess_options.inter_op_num_threads = 1
                 
                 self.session = ort.InferenceSession(
                     self.model_path,

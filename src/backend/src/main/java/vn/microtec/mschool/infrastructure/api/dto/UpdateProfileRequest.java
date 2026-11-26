@@ -19,13 +19,19 @@ public class UpdateProfileRequest {
     private SubjectType subjectType;
     private String departmentOrClass;
     private Double qualityScore;
+    private Double laplacianScore;
     private Boolean isActive;
     private String imageBase64;
     private String angleType;
     private List<Double> embeddingPrimary;
     private List<Double> embeddingLeft;
     private List<Double> embeddingRight;
+    private List<Double> embeddingPitch;
+    private List<Double> embeddingCameraNative;
     private String photoStraight;
     private String photoLeft;
     private String photoRight;
+    private String photoPitch;
+    private String photoCameraNative;
+    private String alignedFaceStraight;
 }

@@ -5,12 +5,12 @@ import { Bell, Search, ChevronDown, Check } from 'lucide-react';
 import { useTranslation, SupportedLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 
-const languages: { code: SupportedLanguage; label: string; flag: string }[] = [
-  { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
-  { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'zh', label: '中文', flag: '🇨🇳' },
-  { code: 'ja', label: '日本語', flag: '🇯🇵' },
-  { code: 'ko', label: '한국어', flag: '🇰🇷' },
+const languages: { code: SupportedLanguage; labelKey: string; flag: string }[] = [
+  { code: 'vi', labelKey: 'header.langVi', flag: '🇻🇳' },
+  { code: 'en', labelKey: 'header.langEn', flag: '🇬🇧' },
+  { code: 'zh', labelKey: 'header.langZh', flag: '🇨🇳' },
+  { code: 'ja', labelKey: 'header.langJa', flag: '🇯🇵' },
+  { code: 'ko', labelKey: 'header.langKo', flag: '🇰🇷' },
 ];
 
 export default function Header() {
@@ -63,7 +63,7 @@ export default function Header() {
             type="button"
             onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
             className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 transition-all shadow-xs focus:outline-none focus:ring-1 focus:ring-sky-500 whitespace-nowrap"
-            title="Đổi ngôn ngữ giao diện"
+            title={t('header.changeLanguage')}
           >
             <span className="text-base leading-none">{currentLang.flag}</span>
             <span className="font-bold tracking-wider text-slate-700">{currentLang.code.toUpperCase()}</span>
@@ -78,7 +78,7 @@ export default function Header() {
           {isLangDropdownOpen && (
             <div className="absolute right-0 mt-2 w-44 rounded-2xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
-                Ngôn ngữ giao diện
+                {t('header.languageMenuTitle')}
               </div>
               <div className="space-y-0.5">
                 {languages.map((l) => {
@@ -98,7 +98,7 @@ export default function Header() {
                     >
                       <div className="flex items-center gap-2.5">
                         <span className="text-base leading-none">{l.flag}</span>
-                        <span>{l.label}</span>
+                        <span>{t(l.labelKey)}</span>
                       </div>
                       {isSelected && <Check className="w-3.5 h-3.5 text-sky-600" />}
                     </button>

@@ -124,7 +124,7 @@ export default function ClassroomMatrixPage() {
               </div>
               <p className="text-xs text-slate-500 mb-2">{cls.scheduledTeacher}</p>
               <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
-                <span className="text-slate-400">{cls.building} - Tầng {cls.floor}</span>
+                <span className="text-slate-400">{cls.building} - {t('classroomMatrix.floorLabel', { floor: cls.floor })}</span>
                 <span className={`font-bold ${
                   cls.status === ClassroomPeriodStatus.FULL ? 'text-emerald-600' : 'text-rose-600'
                 }`}>

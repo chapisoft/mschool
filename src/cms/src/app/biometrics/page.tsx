@@ -35,15 +35,19 @@ interface ProfileItem {
   subjectType: SubjectType;
   departmentOrClass: string;
   qualityScore: number;
+  laplacianScore?: number;
   isActive: boolean;
   photoStraight?: string;
   photoLeft?: string;
   photoRight?: string;
+  photoPitch?: string;
+  photoCameraNative?: string;
+  alignedFaceStraight?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-type AngleType = 'straight' | 'left' | 'right';
+type AngleType = 'straight' | 'pitch' | 'left' | 'right' | 'camera_native';
 
 interface AiVerifyResult {
   isValid?: boolean;
@@ -57,6 +61,10 @@ interface AiVerifyResult {
   feedbackCode?: string;
   feedbackMessage: string;
   processingTimeMs?: number;
+  laplacianScore?: number;
+  isSharp?: boolean;
+  alignedFaceBase64?: string;
+  highResPortraitBase64?: string;
 }
 
 const formatImageSrc = (b64?: string | null): string => {
@@ -90,26 +98,32 @@ export default function BiometricsPage() {
     identityCode: '',
     fullName: '',
     subjectType: SubjectType.STUDENT,
-    departmentOrClass: '10A1',
-    qualityScore: 0.95,
+    departmentOrClass: '',
+    qualityScore: 0,
   });
 
   // Chế độ thu thập khuôn mặt: 'camera' hoặc 'upload'
   const [captureMode, setCaptureMode] = useState<'camera' | 'upload'>('camera');
+  // Chế độ đăng ký: 'standard' (1 ảnh chính diện - khuyên dùng) hoặc 'multi_angle' (5 góc khuôn mặt)
+  const [enrollmentMode, setEnrollmentMode] = useState<'standard' | 'multi_angle'>('standard');
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [currentAngleStep, setCurrentAngleStep] = useState<AngleType>('straight');
 
-  // Dữ liệu ảnh và vector 512D đã thu thập theo 3 góc
+  // Dữ liệu ảnh và vector 512D đã thu thập theo 5 góc
   const [capturedImages, setCapturedImages] = useState<{
     straight?: string;
+    pitch?: string;
     left?: string;
     right?: string;
+    camera_native?: string;
   }>({});
   const [capturedVectors, setCapturedVectors] = useState<{
     straight?: number[];
+    pitch?: number[];
     left?: number[];
     right?: number[];
+    camera_native?: number[];
   }>({});
 
   // TÍCH HỢP TRÍ TUỆ NHÂN TẠO (AI MIAI ENGINE)
@@ -175,6 +189,24 @@ export default function BiometricsPage() {
   // Helper dịch TRẠNG THÁI đa ngôn ngữ
   const getStatusLabel = (isActive: boolean) => {
     return isActive ? t('biometrics.statusActive') : t('biometrics.statusInactive');
+  };
+
+  // Helper dịch GÓC KHUÔN MẶT đa ngôn ngữ
+  const getAngleLabel = (angle: AngleType) => {
+    switch (angle) {
+      case 'straight':
+        return t('biometrics.angleStraight');
+      case 'pitch':
+        return t('biometrics.anglePitch');
+      case 'left':
+        return t('biometrics.angleLeft');
+      case 'right':
+        return t('biometrics.angleRight');
+      case 'camera_native':
+        return t('biometrics.angleCameraNative');
+      default:
+        return angle;
+    }
   };
 
   // Tải danh sách hồ sơ
@@ -337,7 +369,7 @@ export default function BiometricsPage() {
         return canvas.toDataURL('image/jpeg', 0.85);
       }
     } catch (err) {
-      console.error('Lỗi trích xuất frame từ video:', err);
+      console.error('Frame extraction error:', err);
       return null;
     }
   };
@@ -367,7 +399,7 @@ export default function BiometricsPage() {
     if (!fullDataUrl) return;
 
     let vector = verifiedResult?.embedding;
-    let score = typeof verifiedResult?.qualityScore === 'number' ? verifiedResult.qualityScore : 0.94;
+    let score = typeof verifiedResult?.qualityScore === 'number' ? verifiedResult.qualityScore : 0.0;
 
     // Nếu chưa có vector từ AI, gọi trực tiếp backend để trích xuất qua miai bằng frame nén nhẹ
     if (!vector || vector.length === 0) {
@@ -380,7 +412,7 @@ export default function BiometricsPage() {
           });
           if (resp && resp.embedding) {
             vector = resp.embedding;
-            score = typeof resp.qualityScore === 'number' ? resp.qualityScore : 0.94;
+            score = typeof resp.qualityScore === 'number' ? resp.qualityScore : 0.0;
           }
         }
       } catch (e) {
@@ -393,12 +425,20 @@ export default function BiometricsPage() {
       setCapturedVectors((prev) => ({ ...prev, [angle]: vector }));
     }
 
-    // Hiệu ứng hoàn tất và tự động chuyển sang góc tiếp theo
+    // Hiệu ứng hoàn tất: Chỉ tự động chuyển góc khi đang ở Chế độ Mở rộng (5 góc)
     setAutoCaptureCountdown(null);
-    if (angle === 'straight') {
-      setCurrentAngleStep('left');
-    } else if (angle === 'left') {
-      setCurrentAngleStep('right');
+    if (enrollmentMode === 'multi_angle') {
+      const angles: AngleType[] = ['straight', 'pitch', 'left', 'right', 'camera_native'];
+      const currentIndex = angles.indexOf(angle);
+      const nextUncaptured = angles.find((a, idx) => idx > currentIndex && !capturedImages[a]);
+      if (nextUncaptured) {
+        setCurrentAngleStep(nextUncaptured);
+      } else {
+        const anyUncaptured = angles.find((a) => a !== angle && !capturedImages[a]);
+        if (anyUncaptured) {
+          setCurrentAngleStep(anyUncaptured);
+        }
+      }
     }
   };
 
@@ -420,22 +460,28 @@ export default function BiometricsPage() {
       if (resp) {
         const isFaceValid = Boolean(resp.isValid ?? (resp as any).valid ?? false);
         const score = typeof resp.qualityScore === 'number' ? resp.qualityScore : 0;
+        const isSharp = Boolean(resp.isSharp ?? ((resp.laplacianScore ?? 0) >= 35.0));
         const normalizedResp: AiVerifyResult = {
           ...resp,
           isValid: isFaceValid,
           qualityScore: score,
+          isSharp,
         };
 
         setAiResult(normalizedResp);
 
-        // CƠ CHẾ AUTO-CAPTURE SIÊU TỐC: Khi đạt chuẩn eDifFIQA (>= 0.60) và đúng góc quay
-        if (isFaceValid && resp.angleMatched && score >= 0.60) {
+        // Ngưỡng chất lượng eDifFIQA thích ứng theo góc mặt:
+        // Mặt thẳng: 0.48; Các góc quay/nghiêng/cúi: 0.28 (chuẩn ISO/IEC 29794-5)
+        const minReqScore = currentAngleStep === 'straight' ? 0.48 : 0.28;
+
+        // CƠ CHẾ AUTO-CAPTURE: Đạt chuẩn eDifFIQA theo góc, đúng góc quay VÀ sắc nét
+        if (isFaceValid && resp.angleMatched && score >= minReqScore && isSharp) {
           if (!autoCaptureCountdown) {
             setAutoCaptureCountdown(1);
             if (autoCaptureTimerRef.current) clearTimeout(autoCaptureTimerRef.current);
             autoCaptureTimerRef.current = setTimeout(() => {
               executeCapture(currentAngleStep, normalizedResp);
-            }, 400);
+            }, 350);
           }
         } else {
           setAutoCaptureCountdown(null);
@@ -446,12 +492,12 @@ export default function BiometricsPage() {
         }
       }
     } catch (err: any) {
-      console.warn('Lỗi kiểm chuẩn AI Vision:', err?.message || err);
+      console.warn('AI Vision verification error:', err?.message || err);
     } finally {
       isAnalyzingRef.current = false;
       setIsAiAnalyzing(false);
     }
-  }, [isCameraActive, isAiAssisted, isCreateModalOpen, isEditModalOpen, currentAngleStep, autoCaptureCountdown]);
+  }, [isCameraActive, isAiAssisted, isCreateModalOpen, isEditModalOpen, currentAngleStep, autoCaptureCountdown, enrollmentMode, capturedImages]);
 
   // Luôn cập nhật tham chiếu chu kỳ quét mới nhất để tránh Stale Closure
   cycleRef.current = runAiVerificationCycle;
@@ -516,19 +562,20 @@ export default function BiometricsPage() {
     startCamera();
   };
 
-  const hasAllAngles = Boolean(capturedImages.straight && capturedImages.left && capturedImages.right);
+  const hasAllAngles = Boolean(capturedImages.straight && capturedImages.pitch && capturedImages.left && capturedImages.right);
 
   // Mở modal Đăng ký mới
   const handleOpenCreate = () => {
     setCreateFormData({
-      identityCode: 'HS' + Math.floor(100000 + Math.random() * 900000),
+      identityCode: '',
       fullName: '',
       subjectType: SubjectType.STUDENT,
-      departmentOrClass: '10A1',
-      qualityScore: 0.95,
+      departmentOrClass: '',
+      qualityScore: 0,
     });
     setCapturedImages({});
     setCapturedVectors({});
+    setEnrollmentMode('standard');
     setCurrentAngleStep('straight');
     setCaptureMode('camera');
     setAiResult(null);
@@ -549,9 +596,11 @@ export default function BiometricsPage() {
     e.preventDefault();
     try {
       setIsUploadingPhoto(true);
-      setUploadProgressText('Đang khởi tạo hồ sơ sinh trắc...');
+      setUploadProgressText(t('biometrics.uploadingProfileInit'));
 
-      const finalScore = hasAllAngles ? 0.98 : (capturedImages.straight ? 0.95 : createFormData.qualityScore);
+      const finalScore = aiResult?.qualityScore
+        ? Number(aiResult.qualityScore.toFixed(2))
+        : 0.0;
       const roundVec = (vec?: number[]) => (vec && vec.length === 512 ? vec.map((v) => Number(v.toFixed(3))) : null);
       
       // Bước 1: Tạo hồ sơ với thông tin nghiệp vụ và véc-tơ ban đầu (Payload nhẹ < 2KB, KHÔNG kèm ảnh to)
@@ -561,10 +610,23 @@ export default function BiometricsPage() {
         subjectType: createFormData.subjectType,
         departmentOrClass: createFormData.departmentOrClass.trim(),
         qualityScore: finalScore,
+        laplacianScore: aiResult?.laplacianScore ? Number(aiResult.laplacianScore.toFixed(1)) : undefined,
       };
 
       if (capturedVectors.straight && capturedVectors.straight.length === 512) {
         createPayload.embeddingPrimary = roundVec(capturedVectors.straight);
+      }
+      if (capturedVectors.pitch && capturedVectors.pitch.length === 512) {
+        createPayload.embeddingPitch = roundVec(capturedVectors.pitch);
+      }
+      if (capturedVectors.left && capturedVectors.left.length === 512) {
+        createPayload.embeddingLeft = roundVec(capturedVectors.left);
+      }
+      if (capturedVectors.right && capturedVectors.right.length === 512) {
+        createPayload.embeddingRight = roundVec(capturedVectors.right);
+      }
+      if (capturedVectors.camera_native && capturedVectors.camera_native.length === 512) {
+        createPayload.embeddingCameraNative = roundVec(capturedVectors.camera_native);
       }
 
       const resp: any = await postApi('/biometrics/profiles', createPayload);
@@ -573,16 +635,24 @@ export default function BiometricsPage() {
       // Bước 2: Tải ảnh chân dung độ nét cao theo cơ chế phân đoạn (Chunked Base64 Upload)
       if (newId) {
         if (capturedImages.straight) {
-          setUploadProgressText('Đang tải ảnh chính diện độ nét cao...');
+          setUploadProgressText(t('biometrics.uploadingPhotoStraight'));
           await uploadPhotoInChunks(newId, 'straight', capturedImages.straight);
         }
+        if (capturedImages.pitch) {
+          setUploadProgressText(t('biometrics.uploadingPhotoPitch'));
+          await uploadPhotoInChunks(newId, 'pitch', capturedImages.pitch);
+        }
         if (capturedImages.left) {
-          setUploadProgressText('Đang tải ảnh nghiêng trái độ nét cao...');
+          setUploadProgressText(t('biometrics.uploadingPhotoLeft'));
           await uploadPhotoInChunks(newId, 'left', capturedImages.left);
         }
         if (capturedImages.right) {
-          setUploadProgressText('Đang tải ảnh nghiêng phải độ nét cao...');
+          setUploadProgressText(t('biometrics.uploadingPhotoRight'));
           await uploadPhotoInChunks(newId, 'right', capturedImages.right);
+        }
+        if (capturedImages.camera_native) {
+          setUploadProgressText(t('biometrics.uploadingPhotoCameraNative'));
+          await uploadPhotoInChunks(newId, 'camera_native', capturedImages.camera_native);
         }
       }
 
@@ -615,10 +685,14 @@ export default function BiometricsPage() {
     // Nạp ảnh cũ để hiển thị xem trước, ghi nhớ không gửi lại nếu không thay đổi
     setCapturedImages({
       straight: p.photoStraight,
+      pitch: p.photoPitch,
       left: p.photoLeft,
       right: p.photoRight,
+      camera_native: p.photoCameraNative,
     });
     setCapturedVectors({});
+    const hasMultiple = Boolean(p.photoPitch || p.photoLeft || p.photoRight || p.photoCameraNative);
+    setEnrollmentMode(hasMultiple ? 'multi_angle' : 'standard');
     setCurrentAngleStep('straight');
     setCaptureMode('camera');
     setAiResult(null);
@@ -643,9 +717,9 @@ export default function BiometricsPage() {
       const rawBase64 = reader.result as string;
       const img = new Image();
       img.onload = async () => {
-        // 1. Tạo ảnh chân dung độ nét cao 480px (JPEG chất lượng 0.85) để lưu hồ sơ
+        // 1. Tạo ảnh chân dung độ nét cao (Full HD tối đa 1080px, JPEG chất lượng 0.95) để lưu hồ sơ rõ nét
         const hdCanvas = document.createElement('canvas');
-        const maxDim = 480;
+        const maxDim = 1080;
         let w = img.width;
         let h = img.height;
         if (w > maxDim || h > maxDim) {
@@ -663,7 +737,7 @@ export default function BiometricsPage() {
         if (hdCtx) {
           hdCtx.drawImage(img, 0, 0, w, h);
         }
-        const hdDataUrl = hdCanvas.toDataURL('image/jpeg', 0.85);
+        const hdDataUrl = hdCanvas.toDataURL('image/jpeg', 0.95);
 
         // 2. Tạo frame nén siêu nhẹ < 5.5KB để gửi AI kiểm chuẩn góc quay & khuôn mặt
         const compactB64 = compressCanvasUnderBudget(hdCanvas, 180, 5500);
@@ -678,10 +752,13 @@ export default function BiometricsPage() {
             setCapturedVectors((prev) => ({ ...prev, [currentAngleStep]: resp.embedding }));
           }
           setAiResult(resp);
-          showSuccess('Tải ảnh thành công', `Đã nạp ảnh độ nét cao và trích xuất đặc trưng AI cho góc ${currentAngleStep}`);
+          showSuccess(
+            t('biometrics.uploadSuccessTitle'),
+            t('biometrics.uploadSuccessMsg').replace('{angle}', getAngleLabel(currentAngleStep))
+          );
         } catch (err: any) {
           setCapturedImages((prev) => ({ ...prev, [currentAngleStep]: hdDataUrl }));
-          showInfo('Đã nhận ảnh', 'Ảnh chân dung độ nét cao đã được tải lên');
+          showInfo(t('biometrics.photoReceivedTitle'), t('biometrics.photoReceivedMsg'));
         }
       };
       img.src = rawBase64;
@@ -696,14 +773,18 @@ export default function BiometricsPage() {
     if (!editingProfile) return;
     try {
       setIsUploadingPhoto(true);
-      setUploadProgressText('Đang cập nhật thông tin hồ sơ...');
+      setUploadProgressText(t('biometrics.syncingProfileUpdate'));
 
-      const finalScore = hasAllAngles ? 0.98 : (capturedImages.straight ? 0.95 : (editingProfile.qualityScore || 0.90));
+      const finalScore = aiResult?.qualityScore
+        ? Number(aiResult.qualityScore.toFixed(2))
+        : (editingProfile.qualityScore ?? 0.0);
       const roundVec = (vec?: number[]) => (vec && vec.length === 512 ? vec.map((v) => Number(v.toFixed(3))) : null);
       
       const isNewStraight = Boolean(capturedImages.straight && capturedImages.straight !== editingProfile.photoStraight);
+      const isNewPitch = Boolean(capturedImages.pitch && capturedImages.pitch !== editingProfile.photoPitch);
       const isNewLeft = Boolean(capturedImages.left && capturedImages.left !== editingProfile.photoLeft);
       const isNewRight = Boolean(capturedImages.right && capturedImages.right !== editingProfile.photoRight);
+      const isNewCameraNative = Boolean(capturedImages.camera_native && capturedImages.camera_native !== editingProfile.photoCameraNative);
 
       // Bước 1: Cập nhật thông tin cơ bản + véc-tơ mới (Payload nhẹ < 2KB, KHÔNG kèm ảnh to)
       const basePayload: any = {
@@ -712,32 +793,53 @@ export default function BiometricsPage() {
         departmentOrClass: editFormData.departmentOrClass,
         isActive: editFormData.isActive,
         qualityScore: finalScore,
+        laplacianScore: aiResult?.laplacianScore ? Number(aiResult.laplacianScore.toFixed(1)) : undefined,
       };
 
       if (capturedVectors.straight && capturedVectors.straight.length === 512) {
         basePayload.embeddingPrimary = roundVec(capturedVectors.straight);
+      }
+      if (capturedVectors.pitch && capturedVectors.pitch.length === 512) {
+        basePayload.embeddingPitch = roundVec(capturedVectors.pitch);
+      }
+      if (capturedVectors.left && capturedVectors.left.length === 512) {
+        basePayload.embeddingLeft = roundVec(capturedVectors.left);
+      }
+      if (capturedVectors.right && capturedVectors.right.length === 512) {
+        basePayload.embeddingRight = roundVec(capturedVectors.right);
+      }
+      if (capturedVectors.camera_native && capturedVectors.camera_native.length === 512) {
+        basePayload.embeddingCameraNative = roundVec(capturedVectors.camera_native);
       }
 
       await putApi(`/biometrics/profiles/${editingProfile.id}`, basePayload);
 
       // Bước 2: Tải ảnh mới độ nét cao theo cơ chế phân đoạn (Chunked Base64 Upload)
       if (isNewStraight && capturedImages.straight) {
-        setUploadProgressText('Đang đồng bộ ảnh chính diện độ nét cao...');
+        setUploadProgressText(t('biometrics.syncingPhotoStraight'));
         await uploadPhotoInChunks(editingProfile.id, 'straight', capturedImages.straight);
       }
+      if (isNewPitch && capturedImages.pitch) {
+        setUploadProgressText(t('biometrics.syncingPhotoPitch'));
+        await uploadPhotoInChunks(editingProfile.id, 'pitch', capturedImages.pitch);
+      }
       if (isNewLeft && capturedImages.left) {
-        setUploadProgressText('Đang đồng bộ ảnh nghiêng trái độ nét cao...');
+        setUploadProgressText(t('biometrics.syncingPhotoLeft'));
         await uploadPhotoInChunks(editingProfile.id, 'left', capturedImages.left);
       }
       if (isNewRight && capturedImages.right) {
-        setUploadProgressText('Đang đồng bộ ảnh nghiêng phải độ nét cao...');
+        setUploadProgressText(t('biometrics.syncingPhotoRight'));
         await uploadPhotoInChunks(editingProfile.id, 'right', capturedImages.right);
+      }
+      if (isNewCameraNative && capturedImages.camera_native) {
+        setUploadProgressText(t('biometrics.syncingPhotoCameraNative'));
+        await uploadPhotoInChunks(editingProfile.id, 'camera_native', capturedImages.camera_native);
       }
 
       if (isNewStraight || capturedVectors.straight) {
         showSuccess(
           t('biometrics.editTitle'),
-          `Đã cập nhật thông tin và làm mới ảnh chân dung độ nét cao cho ${editFormData.fullName}`
+          t('biometrics.updateSuccessWithPhoto').replace('{name}', editFormData.fullName)
         );
       } else {
         showSuccess(t('biometrics.editTitle'), t('biometrics.updateSuccess'));
@@ -848,18 +950,19 @@ export default function BiometricsPage() {
   const isAllSelected = profiles.length > 0 && selectedIds.size === profiles.length;
   const isPartiallySelected = selectedIds.size > 0 && selectedIds.size < profiles.length;
 
-  // Tính toán màu sắc Face Oval dựa trên phân tích AI (ngưỡng thực tế 60%)
+  // Tính toán màu sắc Face Oval dựa trên phân tích AI (mặt thẳng 0.48, góc quay/cúi 0.28)
+  const minRequiredScore = currentAngleStep === 'straight' ? 0.48 : 0.28;
   const isCurrentAngleSatisfied = Boolean(
-    aiResult && (aiResult.isValid ?? (aiResult as any).valid) && aiResult.angleMatched && (aiResult.qualityScore || 0) >= 0.60
+    aiResult && (aiResult.isValid ?? (aiResult as any).valid) && aiResult.angleMatched && (aiResult.qualityScore || 0) >= minRequiredScore
   );
 
   const guideStrokeColor = isCurrentAngleSatisfied
     ? '#10b981' // Xanh lục ĐẠT
-    : (aiResult && aiResult.qualityScore > 0.45)
+    : (aiResult && (aiResult.qualityScore || 0) > (minRequiredScore - 0.10))
     ? '#f59e0b' // Vàng ĐANG CĂN CHỈNH
     : '#38bdf8'; // Xanh ngọc MẶC ĐỊNH
 
-  // Hàm render giao diện thu thập khuôn mặt 3 góc tích hợp AI miai dùng chung 100% cho cả Create và Edit Modal
+  // Hàm render giao diện thu thập khuôn mặt tích hợp AI miai dùng chung 100% cho cả Create và Edit Modal
   const renderFaceCaptureSection = () => (
     <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/70 space-y-3">
       {/* Ẩn file input để tải ảnh lên */}
@@ -871,6 +974,69 @@ export default function BiometricsPage() {
         onChange={handleFileUpload}
       />
 
+      {/* CHUYỂN ĐỔI CHẾ ĐỘ ĐĂNG KÝ: TIÊU CHUẨN 1 ẢNH vs MỞ RỘNG 5 GÓC */}
+      <div className="flex border border-slate-200 rounded-xl p-1 bg-slate-100 gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            setEnrollmentMode('standard');
+            setCurrentAngleStep('straight');
+            setAutoCaptureCountdown(null);
+          }}
+          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            enrollmentMode === 'standard'
+              ? 'bg-white text-sky-700 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Camera className="w-3.5 h-3.5" />
+          <span>{t('biometrics.standardModeTab')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setEnrollmentMode('multi_angle');
+            setAutoCaptureCountdown(null);
+          }}
+          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            enrollmentMode === 'multi_angle'
+              ? 'bg-white text-sky-700 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>{t('biometrics.multiAngleModeTab')}</span>
+        </button>
+      </div>
+
+      {/* GỢI Ý ĐIỀU HƯỚNG CHẾ ĐỘ TIÊU CHUẨN */}
+      {enrollmentMode === 'standard' && (
+        <div className="flex items-center justify-between text-[11px] text-slate-500 bg-sky-50/60 border border-sky-100 px-3 py-2 rounded-xl">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-sky-600 flex-shrink-0" />
+            <span>{t('biometrics.standardModeTip')}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEnrollmentMode('multi_angle')}
+            className="text-sky-600 font-semibold hover:underline flex-shrink-0 ml-2 cursor-pointer"
+          >
+            {t('biometrics.switchModeHint')}
+          </button>
+        </div>
+      )}
+
+      {/* GỢI Ý CHẾ ĐỘ MỞ RỘNG 5 GÓC */}
+      {enrollmentMode === 'multi_angle' && (
+        <div className="flex items-center justify-between text-[11px] text-slate-500 bg-violet-50/60 border border-violet-100 px-3 py-2 rounded-xl">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-violet-600 flex-shrink-0" />
+            <span>{t('biometrics.multiAngleModeTip')}</span>
+          </div>
+        </div>
+      )}
+
+      {/* THANH ĐIỀU KHIỂN NGUỒN ẢNH (CAMERA / TẢI ẢNH) & TRỢ LÝ AI */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
@@ -905,7 +1071,6 @@ export default function BiometricsPage() {
           </button>
         </div>
 
-        {/* Bật / Tắt Hỗ trợ AI Core miai */}
         {captureMode === 'camera' && (
           <div className="flex items-center gap-2">
             <button
@@ -925,242 +1090,258 @@ export default function BiometricsPage() {
         )}
       </div>
 
-      {/* CHẾ ĐỘ 1: BẬT CAMERA TRỰC TIẾP VỚI KHUÔN MẪU & AI ASSISTANT */}
+      {/* CHẾ ĐỘ 1: BẬT CAMERA TRỰC TIẾP */}
       {captureMode === 'camera' && (
         <div className="space-y-3">
-          {/* Khung hướng dẫn xoay mặt 3 bước */}
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentAngleStep('straight');
-                setAutoCaptureCountdown(null);
-              }}
-              className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
-                currentAngleStep === 'straight'
-                  ? 'border-sky-500 bg-sky-50/80 ring-2 ring-sky-200'
-                  : capturedImages.straight
-                  ? 'border-emerald-300 bg-emerald-50/50'
-                  : 'border-slate-200 bg-white'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-700">{t('biometrics.angleStraightTitle')}</span>
-                {capturedImages.straight ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-sky-500" />
+          {/* THANH 5 GÓC CHỈ HIỂN THỊ KHI Ở CHẾ ĐỘ MỞ RỘNG (MULTI-ANGLE MODE) */}
+          {enrollmentMode === 'multi_angle' && (
+            <div className="grid grid-cols-5 gap-1.5">
+              {(['straight', 'pitch', 'left', 'right', 'camera_native'] as AngleType[]).map((angle) => {
+                const isSelected = currentAngleStep === angle;
+                const isCaptured = Boolean(capturedImages[angle]);
+                const title =
+                  angle === 'straight'
+                    ? t('biometrics.angleStraightTitle')
+                    : angle === 'pitch'
+                    ? t('biometrics.anglePitchTitle')
+                    : angle === 'left'
+                    ? t('biometrics.angleLeftTitle')
+                    : angle === 'right'
+                    ? t('biometrics.angleRightTitle')
+                    : t('biometrics.angleCameraNativeTitle');
+                const hint =
+                  angle === 'straight'
+                    ? t('biometrics.turnStraight')
+                    : angle === 'pitch'
+                    ? t('biometrics.turnPitch')
+                    : angle === 'left'
+                    ? t('biometrics.turnLeft')
+                    : angle === 'right'
+                    ? t('biometrics.turnRight')
+                    : t('biometrics.turnCameraNative');
+
+                return (
+                  <button
+                    key={angle}
+                    type="button"
+                    onClick={() => {
+                      setCurrentAngleStep(angle);
+                      setAutoCaptureCountdown(null);
+                    }}
+                    className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-sky-500 bg-sky-50/80 ring-2 ring-sky-200'
+                        : isCaptured
+                        ? 'border-emerald-300 bg-emerald-50/50'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700">{title}</span>
+                      {isCaptured ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      ) : (
+                        <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-sky-500' : 'bg-slate-300'}`} />
+                      )}
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-0.5 truncate">{hint}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* XEM TRƯỚC ẢNH ĐÃ CHỤP KHI CAMERA TẮT TRONG CHẾ ĐỘ TIÊU CHUẨN */}
+          {enrollmentMode === 'standard' && capturedImages.straight && !isCameraActive ? (
+            <div className="relative aspect-video w-full max-h-[300px] bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center border border-emerald-500/50 shadow-md group">
+              <img
+                src={formatImageSrc(capturedImages.straight)}
+                alt={t('biometrics.faceProfileImage')}
+                className="w-full h-full object-contain"
+              />
+              <div className="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-emerald-500 text-xs text-white flex items-center gap-2 shadow-sm">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="font-semibold text-emerald-300">{t('biometrics.singlePhotoSuccess')}</span>
+                {aiResult?.qualityScore !== undefined && (
+                  <span className="font-mono text-emerald-400">({Math.round(aiResult.qualityScore * 100)}% FIQA)</span>
                 )}
               </div>
-              <p className="text-[10px] text-slate-500 mt-0.5">{t('biometrics.turnStraight')}</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentAngleStep('left');
-                setAutoCaptureCountdown(null);
-              }}
-              className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
-                currentAngleStep === 'left'
-                  ? 'border-sky-500 bg-sky-50/80 ring-2 ring-sky-200'
-                  : capturedImages.left
-                  ? 'border-emerald-300 bg-emerald-50/50'
-                  : 'border-slate-200 bg-white'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-700">{t('biometrics.angleLeftTitle')}</span>
-                {capturedImages.left ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-slate-300" />
-                )}
-              </div>
-              <p className="text-[10px] text-slate-500 mt-0.5">{t('biometrics.turnLeft')}</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentAngleStep('right');
-                setAutoCaptureCountdown(null);
-              }}
-              className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
-                currentAngleStep === 'right'
-                  ? 'border-sky-500 bg-sky-50/80 ring-2 ring-sky-200'
-                  : capturedImages.right
-                  ? 'border-emerald-300 bg-emerald-50/50'
-                  : 'border-slate-200 bg-white'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-700">{t('biometrics.angleRightTitle')}</span>
-                {capturedImages.right ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-slate-300" />
-                )}
-              </div>
-              <p className="text-[10px] text-slate-500 mt-0.5">{t('biometrics.turnRight')}</p>
-            </button>
-          </div>
-
-          {/* Viewfinder Camera với Face Oval Guide Overlay & AI Vision HUD */}
-          <div className="relative aspect-video w-full max-h-[300px] bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner">
-            {cameraError ? (
-              <div className="text-center p-6 text-slate-400">
-                <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                <p className="text-xs text-slate-300 max-w-sm">{cameraError}</p>
+              <div className="absolute bottom-3 right-3 flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={startCamera}
-                  className="mt-3 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer"
+                  onClick={handleStartCameraForRetake}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
                 >
-                  {t('biometrics.cameraStart')}
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>{t('biometrics.retakePhotoBtn')}</span>
                 </button>
               </div>
-            ) : !isCameraActive && capturedImages[currentAngleStep] ? (
-              /* Hiển thị ảnh cũ của hồ sơ khi camera đang tắt */
-              <div className="relative w-full h-full flex items-center justify-center bg-slate-900 group">
-                <img
-                  src={formatImageSrc(capturedImages[currentAngleStep])}
-                  alt="Ảnh khuôn mặt hồ sơ"
-                  className="w-full h-full object-contain"
-                />
-                <div className="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-xs px-2.5 py-1 rounded-xl border border-slate-700 text-[10px] text-white flex items-center gap-1.5 shadow-sm">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="font-semibold text-slate-200">Ảnh hồ sơ đã lưu:</span>
-                  <span className="text-emerald-400 font-medium">
-                    {currentAngleStep === 'straight'
-                      ? t('biometrics.angleStraightTitle')
-                      : currentAngleStep === 'left'
-                      ? t('biometrics.angleLeftTitle')
-                      : t('biometrics.angleRightTitle')}
-                  </span>
-                </div>
-                <div className="absolute bottom-3 right-3">
+            </div>
+          ) : (
+            /* KHUNG VIEWFINDER CAMERA TRỰC TIẾP */
+            <div className="relative aspect-video w-full max-h-[300px] bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner">
+              {cameraError ? (
+                <div className="text-center p-6 text-slate-400">
+                  <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                  <p className="text-xs text-slate-300 max-w-sm">{cameraError}</p>
                   <button
                     type="button"
-                    onClick={handleStartCameraForRetake}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
+                    onClick={startCamera}
+                    className="mt-3 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer"
                   >
-                    <Video className="w-3.5 h-3.5" />
-                    <span>Bật Camera để chụp lại</span>
+                    {t('biometrics.cameraStart')}
                   </button>
                 </div>
-              </div>
-            ) : !isCameraActive ? (
-              /* Camera tắt và góc này chưa có ảnh */
-              <div className="text-center p-6 text-slate-400">
-                <Camera className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                <p className="text-xs text-slate-300">Camera đang tắt</p>
-                <button
-                  type="button"
-                  onClick={startCamera}
-                  className="mt-3 px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer inline-flex items-center gap-1.5"
-                >
-                  <Video className="w-3.5 h-3.5" />
-                  <span>{t('biometrics.cameraStart')}</span>
-                </button>
-              </div>
-            ) : (
-              <>
-                <video
-                  ref={(el) => {
-                    videoRef.current = el;
-                    if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
-                      el.srcObject = mediaStreamRef.current;
-                      el.play().catch(() => {});
-                    }
-                  }}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover transform -scale-x-100"
-                />
-
-                {/* Khuôn mẫu Face Oval Guide (SVG viền bầu dục động theo AI) */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <svg className="w-full h-full" viewBox="0 0 640 360" preserveAspectRatio="none">
-                    <defs>
-                      <mask id="face-mask">
-                        <rect width="640" height="360" fill="white" />
-                        <ellipse cx="320" cy="180" rx="105" ry="140" fill="black" />
-                      </mask>
-                    </defs>
-                    <rect
-                      width="640"
-                      height="360"
-                      fill="rgba(15, 23, 42, 0.45)"
-                      mask="url(#face-mask)"
-                    />
-
-                    {/* Viền bầu dục căn mặt - Đổi màu theo kết quả phân tích AI */}
-                    <ellipse
-                      cx="320"
-                      cy="180"
-                      rx="105"
-                      ry="140"
-                      fill="none"
-                      stroke={guideStrokeColor}
-                      strokeWidth="2.5"
-                      strokeDasharray={isCurrentAngleSatisfied ? 'none' : '6 4'}
-                      className={isCurrentAngleSatisfied ? '' : 'animate-pulse'}
-                    />
-
-                    {/* 4 Góc căn chỉnh mục tiêu */}
-                    <path d="M 200 60 L 200 40 L 220 40" fill="none" stroke={guideStrokeColor} strokeWidth="3" />
-                    <path d="M 440 60 L 440 40 L 420 40" fill="none" stroke={guideStrokeColor} strokeWidth="3" />
-                    <path d="M 200 300 L 200 320 L 220 320" fill="none" stroke={guideStrokeColor} strokeWidth="3" />
-                    <path d="M 440 300 L 440 320 L 420 320" fill="none" stroke={guideStrokeColor} strokeWidth="3" />
-
-                    {/* Đường tâm chữ thập */}
-                    <line x1="320" y1="165" x2="320" y2="195" stroke={guideStrokeColor} strokeWidth="1.5" strokeOpacity="0.7" />
-                    <line x1="305" y1="180" x2="335" y2="180" stroke={guideStrokeColor} strokeWidth="1.5" strokeOpacity="0.7" />
-                  </svg>
-
-                  {/* HUD Thông số AI eDifFIQA & Góc quay đầu thời gian thực */}
-                  <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs px-2.5 py-1.5 rounded-xl border border-slate-700 text-[10px] text-white space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <Activity className={`w-3 h-3 ${isAiAnalyzing ? 'animate-spin text-sky-400' : 'text-emerald-400'}`} />
-                      <span className="font-semibold text-slate-200">AI miai Vision:</span>
-                      <span className="font-mono text-emerald-400">
-                        {aiResult ? `${Math.round(aiResult.qualityScore * 100)}% FIQA` : t('biometrics.scanningFace')}
-                      </span>
-                    </div>
-                    {aiResult?.headPose && (
-                      <div className="text-slate-300 font-mono text-[9px]">
-                        Yaw {aiResult.headPose.yaw ? aiResult.headPose.yaw.toFixed(1) : 0}° | Pitch {aiResult.headPose.pitch ? aiResult.headPose.pitch.toFixed(1) : 0}°
-                      </div>
-                    )}
+              ) : !isCameraActive && capturedImages[currentAngleStep] ? (
+                /* Hiển thị ảnh cũ của góc đang chọn khi camera đang tắt */
+                <div className="relative w-full h-full flex items-center justify-center bg-slate-900 group">
+                  <img
+                    src={formatImageSrc(capturedImages[currentAngleStep])}
+                    alt={t('biometrics.faceProfileImage')}
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-xs px-2.5 py-1 rounded-xl border border-slate-700 text-[10px] text-white flex items-center gap-1.5 shadow-sm">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="font-semibold text-slate-200">{t('biometrics.savedProfileImage')}</span>
+                    <span className="text-emerald-400 font-medium">
+                      {getAngleLabel(currentAngleStep)}
+                    </span>
                   </div>
-
-                  {/* Thông báo Auto-Capture hoặc Hướng Dẫn AI */}
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[85%] text-center">
-                    {autoCaptureCountdown ? (
-                      <div className="bg-emerald-600 text-white px-4 py-1.5 rounded-full text-xs font-bold animate-bounce shadow-lg flex items-center gap-2">
-                        <Zap className="w-3.5 h-3.5 fill-white" />
-                        <span>{t('biometrics.autoCaptureTriggered')}</span>
-                      </div>
-                    ) : (
-                      <div className="bg-slate-900/85 backdrop-blur-xs px-3.5 py-1 rounded-full text-[11px] text-sky-200 border border-sky-400/40 font-medium">
-                        {aiResult?.feedbackMessage || (
-                          currentAngleStep === 'straight'
-                            ? t('biometrics.turnStraight')
-                            : currentAngleStep === 'left'
-                            ? t('biometrics.turnLeft')
-                            : t('biometrics.turnRight')
-                        )}
-                      </div>
-                    )}
+                  <div className="absolute bottom-3 right-3">
+                    <button
+                      type="button"
+                      onClick={handleStartCameraForRetake}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
+                    >
+                      <Video className="w-3.5 h-3.5" />
+                      <span>{t('biometrics.enableCameraToRetake')}</span>
+                    </button>
                   </div>
                 </div>
-              </>
-            )}
-          </div>
+              ) : !isCameraActive ? (
+                /* Camera tắt và góc này chưa có ảnh */
+                <div className="text-center p-6 text-slate-400">
+                  <Camera className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                  <p className="text-xs text-slate-300">{t('biometrics.cameraOff')}</p>
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="mt-3 px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>{t('biometrics.cameraStart')}</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <video
+                    ref={(el) => {
+                      videoRef.current = el;
+                      if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
+                        el.srcObject = mediaStreamRef.current;
+                        el.play().catch(() => {});
+                      }
+                    }}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover transform -scale-x-100"
+                  />
 
-          {/* Các nút thao tác Camera & Chụp thủ công */}
+                  {/* Khuôn mẫu Face Oval Guide (SVG viền bầu dục động theo AI) */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <svg className="w-full h-full" viewBox="0 0 640 360" preserveAspectRatio="none">
+                      <defs>
+                        <mask id="face-mask">
+                          <rect width="640" height="360" fill="white" />
+                          <ellipse cx="320" cy="180" rx="105" ry="140" fill="black" />
+                        </mask>
+                      </defs>
+                      <rect
+                        width="640"
+                        height="360"
+                        fill="rgba(15, 23, 42, 0.45)"
+                        mask="url(#face-mask)"
+                      />
+
+                      {/* Viền bầu dục căn mặt - Đổi màu theo kết quả phân tích AI */}
+                      <ellipse
+                        cx="320"
+                        cy="180"
+                        rx="105"
+                        ry="140"
+                        fill="none"
+                        stroke={guideStrokeColor}
+                        strokeWidth="2.5"
+                        strokeDasharray={isCurrentAngleSatisfied ? 'none' : '6 4'}
+                        className={isCurrentAngleSatisfied ? '' : 'animate-pulse'}
+                      />
+
+                      {/* 4 Góc căn chỉnh mục tiêu */}
+                      <path d="M 200 60 L 200 40 L 220 40" fill="none" stroke={guideStrokeColor} strokeWidth="3" />
+                      <path d="M 440 60 L 440 40 L 420 40" fill="none" stroke={guideStrokeColor} strokeWidth="3" />
+                      <path d="M 200 300 L 200 320 L 220 320" fill="none" stroke={guideStrokeColor} strokeWidth="3" />
+                      <path d="M 440 300 L 440 320 L 420 320" fill="none" stroke={guideStrokeColor} strokeWidth="3" />
+
+                      {/* Đường tâm chữ thập */}
+                      <line x1="320" y1="165" x2="320" y2="195" stroke={guideStrokeColor} strokeWidth="1.5" strokeOpacity="0.7" />
+                      <line x1="305" y1="180" x2="335" y2="180" stroke={guideStrokeColor} strokeWidth="1.5" strokeOpacity="0.7" />
+                    </svg>
+
+                    {/* HUD Thông số AI eDifFIQA, Độ nét Laplacian & Góc quay đầu thời gian thực */}
+                    <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs px-2.5 py-1.5 rounded-xl border border-slate-700 text-[10px] text-white space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <Activity className={`w-3 h-3 ${isAiAnalyzing ? 'animate-spin text-sky-400' : 'text-emerald-400'}`} />
+                        <span className="font-semibold text-slate-200">AI miai Vision:</span>
+                        <span className="font-mono text-emerald-400">
+                          {aiResult ? `${Math.round(aiResult.qualityScore * 100)}% FIQA` : t('biometrics.scanningFace')}
+                        </span>
+                      </div>
+                      {aiResult?.laplacianScore !== undefined && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-400 font-sans">{t('biometrics.laplacianSharpnessLabel')}</span>
+                          <span className={`font-mono font-bold ${aiResult.laplacianScore >= 35.0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {aiResult.laplacianScore.toFixed(1)} {aiResult.laplacianScore >= 35.0 ? `(${t('biometrics.sharp')})` : `(${t('biometrics.blurry')})`}
+                          </span>
+                        </div>
+                      )}
+                      {aiResult?.headPose && (
+                        <div className="text-slate-300 font-mono text-[9px]">
+                          Yaw {aiResult.headPose.yaw ? aiResult.headPose.yaw.toFixed(1) : 0}° | Pitch {aiResult.headPose.pitch ? aiResult.headPose.pitch.toFixed(1) : 0}°
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Thông báo Auto-Capture hoặc Hướng Dẫn Góc Mặt */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[85%] text-center">
+                      {autoCaptureCountdown ? (
+                        <div className="bg-emerald-600 text-white px-4 py-1.5 rounded-full text-xs font-bold animate-bounce shadow-lg flex items-center gap-2">
+                          <Zap className="w-3.5 h-3.5 fill-white" />
+                          <span>{t('biometrics.autoCaptureTriggered')}</span>
+                        </div>
+                      ) : (
+                        <div className="bg-slate-900/85 backdrop-blur-xs px-3.5 py-1 rounded-full text-[11px] text-sky-200 border border-sky-400/40 font-medium">
+                          {aiResult?.feedbackMessage || (
+                            currentAngleStep === 'straight'
+                              ? t('biometrics.turnStraight')
+                              : currentAngleStep === 'pitch'
+                              ? t('biometrics.turnPitch')
+                              : currentAngleStep === 'left'
+                              ? t('biometrics.turnLeft')
+                              : currentAngleStep === 'right'
+                              ? t('biometrics.turnRight')
+                              : t('biometrics.turnCameraNative')
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Các nút thao tác Camera & Chụp ảnh (Luôn sẵn sàng chụp thủ công) */}
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-2">
               {isCameraActive ? (
@@ -1188,95 +1369,196 @@ export default function BiometricsPage() {
               type="button"
               onClick={() => executeCapture(currentAngleStep, aiResult)}
               disabled={!isCameraActive}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
               <Camera className="w-4 h-4" />
-              <span>{t('biometrics.captureAngleBtn')}</span>
+              <span>
+                {enrollmentMode === 'standard' ? t('biometrics.capturePhotoNow') : t('biometrics.captureAngleNow')}
+              </span>
             </button>
           </div>
 
-          {/* Danh mục 3 ảnh góc đã thu thập */}
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200">
-            {(['straight', 'left', 'right'] as AngleType[]).map((angle) => {
-              const img = capturedImages[angle];
-              const hasVector = Boolean(capturedVectors[angle]);
-              const label =
-                angle === 'straight'
-                  ? t('biometrics.angleStraight')
-                  : angle === 'left'
-                  ? t('biometrics.angleLeft')
-                  : t('biometrics.angleRight');
-              return (
-                <div
-                  key={angle}
-                  onClick={() => {
-                    setCurrentAngleStep(angle);
-                    setAutoCaptureCountdown(null);
-                  }}
-                  className={`relative rounded-xl border overflow-hidden p-1 text-center cursor-pointer transition-all ${
-                    currentAngleStep === angle
-                      ? 'border-sky-500 ring-2 ring-sky-200 bg-sky-50/50'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  {img ? (
-                    <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-900">
-                      <img src={formatImageSrc(img)} alt={label} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRetakeAngle(angle);
-                        }}
-                        className="absolute top-1 right-1 p-1 rounded-md bg-black/60 hover:bg-black/80 text-white cursor-pointer"
-                        title={t('biometrics.retakeAngleBtn')}
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                      </button>
-                      <span className="absolute bottom-1 left-1 bg-emerald-600/90 text-[8px] text-white px-1.5 py-0.2 rounded font-mono">
-                        {hasVector ? '512D AI' : 'Đã lưu'}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="aspect-video rounded-lg border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300">
-                      <Camera className="w-4 h-4 mb-0.5" />
-                      <span className="text-[10px]">{t('biometrics.notCaptured')}</span>
-                    </div>
-                  )}
-                  <span className="text-[10px] font-medium text-slate-600 block mt-1">{label}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          {hasAllAngles && (
-            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
-              <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>{t('biometrics.completedAnglesMsg')}</span>
+          {/* THÔNG BÁO THÀNH CÔNG TRONG CHẾ ĐỘ TIÊU CHUẨN */}
+          {enrollmentMode === 'standard' && capturedImages.straight && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>{t('biometrics.photoReadyHint')}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleStartCameraForRetake}
+                className="flex items-center gap-1 text-emerald-700 font-semibold hover:underline cursor-pointer flex-shrink-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>{t('biometrics.retakePhotoBtn')}</span>
+              </button>
             </div>
+          )}
+
+          {/* DANH MỤC 5 ẢNH GÓC ĐÃ THU THẬP TRONG CHẾ ĐỘ MỞ RỘNG */}
+          {enrollmentMode === 'multi_angle' && (
+            <>
+              <div className="grid grid-cols-5 gap-1.5 pt-2 border-t border-slate-200">
+                {(['straight', 'pitch', 'left', 'right', 'camera_native'] as AngleType[]).map((angle) => {
+                  const img = capturedImages[angle];
+                  const hasVector = Boolean(capturedVectors[angle]);
+                  const label = getAngleLabel(angle);
+                  return (
+                    <div
+                      key={angle}
+                      onClick={() => {
+                        setCurrentAngleStep(angle);
+                        setAutoCaptureCountdown(null);
+                      }}
+                      className={`relative rounded-xl border overflow-hidden p-1 text-center cursor-pointer transition-all ${
+                        currentAngleStep === angle
+                          ? 'border-sky-500 ring-2 ring-sky-200 bg-sky-50/50'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      {img ? (
+                        <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-900">
+                          <img src={formatImageSrc(img)} alt={label} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetakeAngle(angle);
+                            }}
+                            className="absolute top-1 right-1 p-1 rounded-md bg-black/60 hover:bg-black/80 text-white cursor-pointer"
+                            title={t('biometrics.retakeAngleBtn')}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="absolute bottom-1 left-1 bg-emerald-600/90 text-[8px] text-white px-1.5 py-0.2 rounded font-mono">
+                            {hasVector ? '512D AI' : t('biometrics.saved')}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="aspect-video rounded-lg border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300">
+                          <Camera className="w-4 h-4 mb-0.5" />
+                          <span className="text-[10px]">{t('biometrics.notCaptured')}</span>
+                        </div>
+                      )}
+                      <span className="text-[10px] font-medium text-slate-600 block mt-1">{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {hasAllAngles && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+                  <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{t('biometrics.completedAnglesMsg')}</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
 
       {/* CHẾ ĐỘ 2: TẢI TỆP ẢNH LÊN */}
       {captureMode === 'upload' && (
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-slate-300 hover:border-sky-500 rounded-xl p-6 text-center transition-colors cursor-pointer bg-white"
-        >
-          <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-          <p className="text-xs text-slate-700 font-medium">
-            {t('biometrics.dragDropPhoto')}
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1">
-            {t('biometrics.supportedFormats')}
-          </p>
-          <div className="mt-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-600 text-xs font-semibold hover:bg-sky-100 transition-colors">
-              <Upload className="w-3.5 h-3.5" />
-              <span>Chọn ảnh từ máy tính</span>
-            </span>
-          </div>
+        <div className="space-y-3">
+          {/* NẾU Ở CHẾ ĐỘ MỞ RỘNG: HIỂN THỊ CÁC GÓC ĐỂ CHỌN GÓC CẦN TẢI */}
+          {enrollmentMode === 'multi_angle' && (
+            <div className="grid grid-cols-5 gap-1.5">
+              {(['straight', 'pitch', 'left', 'right', 'camera_native'] as AngleType[]).map((angle) => {
+                const isSelected = currentAngleStep === angle;
+                const isCaptured = Boolean(capturedImages[angle]);
+                return (
+                  <button
+                    key={angle}
+                    type="button"
+                    onClick={() => setCurrentAngleStep(angle)}
+                    className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-sky-500 bg-sky-50 ring-2 ring-sky-200'
+                        : isCaptured
+                        ? 'border-emerald-300 bg-emerald-50/50'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <span className="text-[11px] font-bold text-slate-700 block truncate">
+                      {getAngleLabel(angle)}
+                    </span>
+                    <span className="text-[9px] text-slate-500 mt-0.5 block">
+                      {isCaptured ? t('biometrics.saved') : t('biometrics.notCaptured')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {capturedImages[currentAngleStep] ? (
+            <div className="relative aspect-video w-full max-h-[300px] bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center border border-emerald-500/50 shadow-md">
+              <img
+                src={formatImageSrc(capturedImages[currentAngleStep])}
+                alt={t('biometrics.faceProfileImage')}
+                className="w-full h-full object-contain"
+              />
+              <div className="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-emerald-500 text-xs text-white flex items-center gap-2 shadow-sm">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="font-semibold text-emerald-300">
+                  {enrollmentMode === 'standard' ? t('biometrics.singlePhotoSuccess') : getAngleLabel(currentAngleStep)}
+                </span>
+                {aiResult?.qualityScore !== undefined && (
+                  <span className="font-mono text-emerald-400">({Math.round(aiResult.qualityScore * 100)}% FIQA)</span>
+                )}
+              </div>
+              <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{t('biometrics.chooseAnotherPhoto')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCapturedImages((prev) => {
+                      const next = { ...prev };
+                      delete next[currentAngleStep];
+                      return next;
+                    });
+                    setCapturedVectors((prev) => {
+                      const next = { ...prev };
+                      delete next[currentAngleStep];
+                      return next;
+                    });
+                    setAiResult(null);
+                  }}
+                  className="p-1.5 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
+                  title={t('biometrics.removePhoto')}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-300 hover:border-sky-500 rounded-2xl p-8 text-center transition-colors cursor-pointer bg-white"
+            >
+              <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <p className="text-xs text-slate-700 font-medium">
+                {t('biometrics.dragDropPhoto')}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {t('biometrics.supportedFormats')}
+              </p>
+              <div className="mt-4">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-50 text-sky-600 text-xs font-semibold hover:bg-sky-100 transition-colors">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{t('biometrics.selectPhotoFromComputer')}</span>
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1312,7 +1594,7 @@ export default function BiometricsPage() {
             className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-xs whitespace-nowrap flex-shrink-0 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Thử nghiệm nhận diện</span>
+            <span>{t('biometrics.testRecognition')}</span>
           </button>
           <button
             onClick={handleOpenCreate}
@@ -1438,9 +1720,23 @@ export default function BiometricsPage() {
                       </td>
                       <td className="py-3 px-4 text-slate-700 font-medium whitespace-nowrap">{p.departmentOrClass || '—'}</td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-bold whitespace-nowrap inline-block">
-                          {Math.round((p.qualityScore || 0.9) * 100)}% FIQA
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-bold text-[10px] whitespace-nowrap inline-block">
+                            {p.qualityScore != null ? Math.round(p.qualityScore * 100) : 0}% FIQA
+                          </span>
+                          {p.laplacianScore != null && (
+                            <span
+                              className={`px-2 py-0.5 rounded-full font-mono font-bold text-[10px] border whitespace-nowrap inline-block ${
+                                p.laplacianScore >= 150.0
+                                  ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}
+                              title={t('biometrics.laplacianSharpnessTooltip').replace('{score}', Math.round(p.laplacianScore).toString())}
+                            >
+                              L:{Math.round(p.laplacianScore)}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span
@@ -1508,7 +1804,7 @@ export default function BiometricsPage() {
                 onChange={(e) =>
                   setCreateFormData({ ...createFormData, identityCode: e.target.value.toUpperCase() })
                 }
-                placeholder="HS100293 hoặc GV0012"
+                placeholder={t('biometrics.identityCodePlaceholder')}
                 className="w-full h-10 bg-white border border-slate-300 rounded-xl px-3 text-xs text-slate-900 font-mono uppercase focus:outline-none focus:border-sky-500"
               />
             </div>
@@ -1521,7 +1817,7 @@ export default function BiometricsPage() {
                 required
                 value={createFormData.fullName}
                 onChange={(e) => setCreateFormData({ ...createFormData, fullName: e.target.value })}
-                placeholder="Nguyễn Văn Bảo"
+                placeholder={t('biometrics.fullNamePlaceholder')}
                 className="w-full h-10 bg-white border border-slate-300 rounded-xl px-3 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               />
             </div>
@@ -1555,7 +1851,7 @@ export default function BiometricsPage() {
                 onChange={(e) =>
                   setCreateFormData({ ...createFormData, departmentOrClass: e.target.value })
                 }
-                placeholder="10A1 hoặc Tổ Toán"
+                placeholder={t('biometrics.departmentPlaceholder')}
                 className="w-full h-10 bg-white border border-slate-300 rounded-xl px-3 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               />
             </div>
@@ -1579,7 +1875,7 @@ export default function BiometricsPage() {
               className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-60 text-white text-xs font-semibold shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               {isUploadingPhoto && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-              <span>{isUploadingPhoto ? (uploadProgressText || 'Đang xử lý...') : t('biometrics.registerNew')}</span>
+              <span>{isUploadingPhoto ? (uploadProgressText || t('common.processing')) : t('biometrics.registerNew')}</span>
             </button>
           </div>
         </form>
@@ -1701,7 +1997,7 @@ export default function BiometricsPage() {
               ) : (
                 capturedImages.straight && <Sparkles className="w-3.5 h-3.5 text-sky-200" />
               )}
-              <span>{isUploadingPhoto ? (uploadProgressText || 'Đang lưu...') : t('biometrics.saveChanges')}</span>
+              <span>{isUploadingPhoto ? (uploadProgressText || t('common.saving')) : t('biometrics.saveChanges')}</span>
             </button>
           </div>
         </form>
@@ -1722,7 +2018,7 @@ export default function BiometricsPage() {
         isOpen={isTestModalOpen}
         onClose={() => setIsTestModalOpen(false)}
         onAttendanceSuccess={() => {
-          showSuccess('Ghi nhận thành công', 'Dữ liệu điểm danh đã được ghi nhận vào sổ cái.');
+          showSuccess(t('biometrics.recordSuccess'), t('biometrics.recordSuccessMsg'));
         }}
       />
     </div>

@@ -6,8 +6,8 @@ import { ToastProvider } from '@/context/ToastContext';
 import AppLayoutContent from '@/components/AppLayoutContent';
 
 export const metadata = {
-  title: 'MSCHOOL - Hệ thống Quản trị Trường học Thông minh',
-  description: 'Nền tảng điểm danh khuôn mặt không dừng, ma trận phòng học và quản lý an ninh học đường',
+  title: 'MSCHOOL - Smart School Management System',
+  description: 'AI-powered non-stop facial attendance, classroom matrix and school security management platform',
   icons: {
     icon: '/icon.svg',
     shortcut: '/favicon.svg',

@@ -44,6 +44,10 @@ public class AttendanceController {
         private String cameraId;
 
         private LocalDateTime scanTime;
+        private Double qualityScore;
+        private Double laplacianVariance;
+        private String evidenceImage;
+        private List<Double> fusedVector;
     }
 
     /**

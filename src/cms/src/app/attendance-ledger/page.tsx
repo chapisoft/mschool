@@ -83,15 +83,15 @@ export default function AttendanceLedgerPage() {
   const handleConfirm = async (id: string) => {
     try {
       await fetchApi(`/classroom-attendance/${id}/confirm`, { method: 'POST' });
-      showSuccess('Xác nhận sổ đầu bài', 'Đã ghi nhận chữ ký số xác nhận tiết học thành công');
+      showSuccess(t('attendanceLedger.confirmSuccessTitle'), t('attendanceLedger.confirmSuccessMsg'));
       loadLedgerData();
     } catch (err: any) {
-      showError('Lỗi xác nhận tiết học', err.message);
+      showError(t('attendanceLedger.confirmError'), err.message);
     }
   };
 
   const handleExportExcel = () => {
-    showInfo('Xuất báo cáo Excel', `Đang kết xuất sổ điểm danh ngày ${selectedDate}...`);
+    showInfo(t('attendanceLedger.exportExcelTitle'), t('attendanceLedger.exportExcelMsg', { date: selectedDate }));
     window.open(`/api/v1/attendance/export/excel?date=${selectedDate}`, '_blank');
   };
 
@@ -169,7 +169,9 @@ export default function AttendanceLedgerPage() {
                     {r.periodNumber}
                   </span>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-base">Tiết {r.periodNumber} - Lớp {r.classId}</h3>
+                    <h3 className="font-bold text-slate-900 text-base">
+                      {t('attendanceLedger.periodTitle', { period: r.periodNumber, classId: r.classId })}
+                    </h3>
                     <p className="text-xs text-slate-500">{t('attendanceLedger.teacher')}: {r.actualTeacherCode}</p>
                   </div>
                 </div>

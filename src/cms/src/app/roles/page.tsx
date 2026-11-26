@@ -36,18 +36,18 @@ interface RolePermissionItem {
   canExport: boolean;
 }
 
-const MODULE_DEFINITIONS = [
-  { code: 'DASHBOARD', name: 'Tổng quan Sĩ số', desc: 'Bảng điều khiển sĩ số toàn trường' },
-  { code: 'CLASSROOM_MATRIX', name: 'Ma trận 50 Phòng học', desc: 'Giám sát sĩ số và giáo viên thời gian thực' },
-  { code: 'GUARD_DESK', name: 'Bốt Bảo Vệ Ra Vào', desc: 'Kiểm soát khách, phụ huynh và cảnh báo người lạ' },
-  { code: 'ATTENDANCE_LEDGER', name: 'Sổ Đầu Bài Điện Tử', desc: 'Xác nhận tiết học và đối soát vắng/nhầm lớp' },
-  { code: 'BIOMETRICS', name: 'Hồ sơ Sinh trắc học', desc: 'Đăng ký khuôn mặt và đồng bộ vector camera' },
-  { code: 'CAMERAS', name: 'Camera & Vạch Ảo', desc: 'Cấu hình luồng RTSP và vạch ảo Spatial Tripwire' },
-  { code: 'CLASSES', name: 'Danh mục Lớp học', desc: 'Quản lý phòng học, khối lớp và phân công giáo viên' },
-  { code: 'AUDIT_LOGS', name: 'Nhật ký Kiểm toán', desc: 'Truy vết thay đổi, can thiệp Maker-Checker' },
-  { code: 'WEBHOOKS', name: 'Cổng Webhook & API', desc: 'Tích hợp vnEdu, Viettel SMAS và SIS' },
-  { code: 'USERS', name: 'Quản trị Người dùng', desc: 'Quản lý tài khoản và phân vai trò' },
-  { code: 'CONFIG', name: 'Tham số & Danh mục', desc: 'Cấu hình ngưỡng AI FIQA, Cooldown, ca học' },
+const MODULE_CODES = [
+  'DASHBOARD',
+  'CLASSROOM_MATRIX',
+  'GUARD_DESK',
+  'ATTENDANCE_LEDGER',
+  'BIOMETRICS',
+  'CAMERAS',
+  'CLASSES',
+  'AUDIT_LOGS',
+  'WEBHOOKS',
+  'USERS',
+  'CONFIG',
 ];
 
 export default function RolesPage() {
@@ -55,7 +55,7 @@ export default function RolesPage() {
   const { showSuccess, showError } = useToast();
 
   const [roles, setRoles] = useState<SystemRoleItem[]>([]);
-  const [selectedRole, setSelectedRole] = useState<string>('ROLE_ADMIN');
+  const [selectedRole, setSelectedRole] = useState<string>('');
   const [permissions, setPermissions] = useState<Record<string, RolePermissionItem>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -80,7 +80,7 @@ export default function RolesPage() {
         setSelectedRole(list[0].roleCode);
       }
     } catch (err: any) {
-      console.warn('Lỗi tải danh mục vai trò:', err.message);
+      console.warn('Failed to load roles:', err.message);
       setError(t('common.errorLoading'));
     } finally {
       setIsLoading(false);
@@ -94,10 +94,10 @@ export default function RolesPage() {
       const permMap: Record<string, RolePermissionItem> = {};
 
       // Khởi tạo mặc định cho tất cả module
-      MODULE_DEFINITIONS.forEach((mod) => {
+      MODULE_CODES.forEach((code) => {
         const isAdmin = roleCode === 'ROLE_ADMIN';
-        permMap[mod.code] = {
-          moduleCode: mod.code,
+        permMap[code] = {
+          moduleCode: code,
           canView: isAdmin,
           canCreate: isAdmin,
           canEdit: isAdmin,
@@ -118,7 +118,7 @@ export default function RolesPage() {
 
       setPermissions(permMap);
     } catch (err: any) {
-      console.warn('Lỗi tải phân quyền:', err.message);
+      console.warn('Failed to load permissions:', err.message);
     }
   };
 
@@ -186,11 +186,13 @@ export default function RolesPage() {
       const permList = Object.values(permissions);
       await putApi(`/roles/${selectedRole}/permissions`, { permissions: permList });
       showSuccess(
-        'Lưu ma trận phân quyền',
-        `Đã lưu cấu hình quyền cho vai trò ${roles.find((r) => r.roleCode === selectedRole)?.roleName || selectedRole}`
+        t('roles.saveSuccessTitle'),
+        t('roles.saveSuccessDesc', {
+          role: roles.find((r) => r.roleCode === selectedRole)?.roleName || selectedRole,
+        })
       );
     } catch (err: any) {
-      showError('Lỗi lưu phân quyền', err.message);
+      showError(t('roles.saveErrorTitle'), err.message);
     } finally {
       setIsSaving(false);
     }
@@ -207,12 +209,12 @@ export default function RolesPage() {
         ...newRoleData,
         roleCode: formattedCode,
       });
-      showSuccess('Tạo nhóm quyền mới', `Đã tạo vai trò ${newRoleData.roleName}`);
+      showSuccess(t('roles.createSuccessTitle'), t('roles.createSuccessDesc', { name: newRoleData.roleName }));
       setIsModalOpen(false);
       setNewRoleData({ roleCode: '', roleName: '', description: '' });
       loadRoles();
     } catch (err: any) {
-      showError('Tạo vai trò thất bại', err.message);
+      showError(t('roles.createErrorTitle'), err.message);
     }
   };
 
@@ -222,10 +224,10 @@ export default function RolesPage() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
             <KeyRound className="w-6 h-6 text-sky-600" />
-            Nhóm Quyền & Ma Trận Phân Quyền (RBAC)
+            {t('roles.title')}
           </h2>
           <p className="text-sm text-slate-500">
-            Thiết lập quyền truy cập chi tiết (Xem, Thêm, Sửa, Xóa, Duyệt, Xuất dữ liệu) theo từng vai trò
+            {t('roles.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -234,7 +236,7 @@ export default function RolesPage() {
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs border border-slate-200 shadow-xs transition-colors"
           >
             <Plus className="w-4 h-4 text-sky-600" />
-            <span>Thêm Vai Trò Mới</span>
+            <span>{t('roles.addRole')}</span>
           </button>
           <button
             onClick={handleSavePermissions}
@@ -242,7 +244,7 @@ export default function RolesPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-sm transition-colors shadow-sm"
           >
             <Save className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
-            <span>{isSaving ? 'Đang lưu...' : 'Lưu Ma Trận Quyền'}</span>
+            <span>{isSaving ? t('roles.saving') : t('roles.saveMatrix')}</span>
           </button>
         </div>
       </div>
@@ -275,7 +277,7 @@ export default function RolesPage() {
                 </span>
                 {role.isSystem && (
                   <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-mono border border-slate-200">
-                    Hệ thống
+                    {t('roles.systemBadge')}
                   </span>
                 )}
               </div>
@@ -290,13 +292,13 @@ export default function RolesPage() {
         <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-slate-900 tracking-wide uppercase">
-              Bảng Phân Quyền Cho:{' '}
+              {t('roles.matrixForRole')}{' '}
               <span className="text-sky-600">
                 {roles.find((r) => r.roleCode === selectedRole)?.roleName || selectedRole}
               </span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Nhấp vào từng ô để cấp hoặc thu hồi quyền hạn đối với từng phân hệ
+              {t('roles.matrixHelp')}
             </p>
           </div>
         </div>
@@ -305,20 +307,20 @@ export default function RolesPage() {
           <table className="w-full text-left text-xs text-slate-700">
             <thead className="bg-slate-50 uppercase text-slate-500 border-b border-slate-200 font-semibold">
               <tr>
-                <th className="py-3.5 px-6 font-semibold w-1/3">Phân hệ chức năng</th>
-                <th className="py-3.5 px-3 text-center font-semibold">Xem</th>
-                <th className="py-3.5 px-3 text-center font-semibold">Thêm</th>
-                <th className="py-3.5 px-3 text-center font-semibold">Sửa</th>
-                <th className="py-3.5 px-3 text-center font-semibold">Xóa</th>
-                <th className="py-3.5 px-3 text-center font-semibold">Duyệt</th>
-                <th className="py-3.5 px-3 text-center font-semibold">Xuất Excel</th>
-                <th className="py-3.5 px-4 text-center font-semibold">Tất cả</th>
+                <th className="py-3.5 px-6 font-semibold w-1/3">{t('roles.colModule')}</th>
+                <th className="py-3.5 px-3 text-center font-semibold">{t('roles.colView')}</th>
+                <th className="py-3.5 px-3 text-center font-semibold">{t('roles.colCreate')}</th>
+                <th className="py-3.5 px-3 text-center font-semibold">{t('roles.colEdit')}</th>
+                <th className="py-3.5 px-3 text-center font-semibold">{t('roles.colDelete')}</th>
+                <th className="py-3.5 px-3 text-center font-semibold">{t('roles.colApprove')}</th>
+                <th className="py-3.5 px-3 text-center font-semibold">{t('roles.colExport')}</th>
+                <th className="py-3.5 px-4 text-center font-semibold">{t('roles.colAll')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {MODULE_DEFINITIONS.map((mod) => {
-                const perm = permissions[mod.code] || {
-                  moduleCode: mod.code,
+              {MODULE_CODES.map((code) => {
+                const perm = permissions[code] || {
+                  moduleCode: code,
                   canView: false,
                   canCreate: false,
                   canEdit: false,
@@ -335,17 +337,21 @@ export default function RolesPage() {
                   perm.canExport;
 
                 return (
-                  <tr key={mod.code} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={code} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-6">
-                      <div className="font-semibold text-slate-900 text-sm">{mod.name}</div>
-                      <div className="text-[11px] text-slate-500">{mod.desc}</div>
+                      <div className="font-semibold text-slate-900 text-sm">
+                        {t(`roles.module_${code}_name`)}
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {t(`roles.module_${code}_desc`)}
+                      </div>
                     </td>
 
                     {/* Cột Xem */}
                     <td className="py-3.5 px-3 text-center">
                       <button
                         type="button"
-                        onClick={() => handleTogglePerm(mod.code, 'canView')}
+                        onClick={() => handleTogglePerm(code, 'canView')}
                         className={`w-6 h-6 rounded flex items-center justify-center mx-auto transition-colors ${
                           perm.canView
                             ? 'bg-sky-600 text-white shadow-xs'
@@ -360,7 +366,7 @@ export default function RolesPage() {
                     <td className="py-3.5 px-3 text-center">
                       <button
                         type="button"
-                        onClick={() => handleTogglePerm(mod.code, 'canCreate')}
+                        onClick={() => handleTogglePerm(code, 'canCreate')}
                         className={`w-6 h-6 rounded flex items-center justify-center mx-auto transition-colors ${
                           perm.canCreate
                             ? 'bg-emerald-600 text-white shadow-xs'
@@ -375,7 +381,7 @@ export default function RolesPage() {
                     <td className="py-3.5 px-3 text-center">
                       <button
                         type="button"
-                        onClick={() => handleTogglePerm(mod.code, 'canEdit')}
+                        onClick={() => handleTogglePerm(code, 'canEdit')}
                         className={`w-6 h-6 rounded flex items-center justify-center mx-auto transition-colors ${
                           perm.canEdit
                             ? 'bg-amber-600 text-white shadow-xs'
@@ -390,7 +396,7 @@ export default function RolesPage() {
                     <td className="py-3.5 px-3 text-center">
                       <button
                         type="button"
-                        onClick={() => handleTogglePerm(mod.code, 'canDelete')}
+                        onClick={() => handleTogglePerm(code, 'canDelete')}
                         className={`w-6 h-6 rounded flex items-center justify-center mx-auto transition-colors ${
                           perm.canDelete
                             ? 'bg-rose-600 text-white shadow-xs'
@@ -405,7 +411,7 @@ export default function RolesPage() {
                     <td className="py-3.5 px-3 text-center">
                       <button
                         type="button"
-                        onClick={() => handleTogglePerm(mod.code, 'canApprove')}
+                        onClick={() => handleTogglePerm(code, 'canApprove')}
                         className={`w-6 h-6 rounded flex items-center justify-center mx-auto transition-colors ${
                           perm.canApprove
                             ? 'bg-purple-600 text-white shadow-xs'
@@ -420,7 +426,7 @@ export default function RolesPage() {
                     <td className="py-3.5 px-3 text-center">
                       <button
                         type="button"
-                        onClick={() => handleTogglePerm(mod.code, 'canExport')}
+                        onClick={() => handleTogglePerm(code, 'canExport')}
                         className={`w-6 h-6 rounded flex items-center justify-center mx-auto transition-colors ${
                           perm.canExport
                             ? 'bg-teal-600 text-white shadow-xs'
@@ -435,14 +441,14 @@ export default function RolesPage() {
                     <td className="py-3.5 px-4 text-center">
                       <button
                         type="button"
-                        onClick={() => handleToggleRowAll(mod.code)}
+                        onClick={() => handleToggleRowAll(code)}
                         className={`text-xs font-semibold px-2 py-1 rounded-lg border transition-colors ${
                           isAll
                             ? 'bg-sky-50 text-sky-700 border-sky-200'
                             : 'bg-slate-100 text-slate-600 hover:text-slate-900 border-slate-200 hover:bg-slate-200'
                         }`}
                       >
-                        {isAll ? 'Bỏ chọn' : 'Toàn quyền'}
+                        {isAll ? t('roles.deselectAll') : t('roles.selectAll')}
                       </button>
                     </td>
                   </tr>
@@ -457,46 +463,46 @@ export default function RolesPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Thêm Nhóm Quyền / Vai Trò Mới"
+        title={t('roles.modalTitle')}
         maxWidth="md"
       >
         <form onSubmit={handleCreateRole} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Mã vai trò (Role Code) <span className="text-rose-500">*</span>
+              {t('roles.modalRoleCode')} <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={newRoleData.roleCode}
               onChange={(e) => setNewRoleData({ ...newRoleData, roleCode: e.target.value })}
-              placeholder="ví dụ: ACCOUNTANT hoặc PARENT"
+              placeholder={t('roles.modalRoleCodePlaceholder')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 uppercase font-mono"
             />
-            <p className="text-[11px] text-slate-500 mt-1">Hệ thống sẽ tự động thêm tiền tố ROLE_ nếu chưa có</p>
+            <p className="text-[11px] text-slate-500 mt-1">{t('roles.modalRoleCodeHelp')}</p>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Tên hiển thị nhóm quyền <span className="text-rose-500">*</span>
+              {t('roles.modalRoleName')} <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={newRoleData.roleName}
               onChange={(e) => setNewRoleData({ ...newRoleData, roleName: e.target.value })}
-              placeholder="ví dụ: Kế Toán Trưởng hoặc Ban Phụ Huynh"
+              placeholder={t('roles.modalRoleNamePlaceholder')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Mô tả nhiệm vụ quyền hạn</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('roles.modalRoleDesc')}</label>
             <textarea
               rows={3}
               value={newRoleData.description}
               onChange={(e) => setNewRoleData({ ...newRoleData, description: e.target.value })}
-              placeholder="Mô tả phạm vi quyền hạn và trách nhiệm..."
+              placeholder={t('roles.modalRoleDescPlaceholder')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500"
             />
           </div>
@@ -513,7 +519,7 @@ export default function RolesPage() {
               type="submit"
               className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-xs"
             >
-              Tạo Vai Trò
+              {t('roles.modalSubmit')}
             </button>
           </div>
         </form>

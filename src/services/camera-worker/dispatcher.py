@@ -56,6 +56,10 @@ class EventDispatcher:
                     "direction": payload.get("direction"),
                     "cameraId": payload.get("cameraId"),
                     "scanTime": payload.get("scanTime"),
+                    "qualityScore": payload.get("qualityScore"),
+                    "laplacianVariance": payload.get("laplacianVariance"),
+                    "fusedVector": payload.get("fusedVector"),
+                    "evidenceImage": payload.get("evidenceImage"),
                 },
             )
         except Exception:
@@ -78,14 +82,26 @@ class EventDispatcher:
         direction: Direction,
     ) -> Optional[Dict[str, Any]]:
         """
-        Gửi yêu cầu nhận diện 1:N với Best Frame và đẩy sự kiện điểm danh.
+        Gửi yêu cầu nhận diện 1:N với ảnh bằng chứng sắc nét và vector hợp nhất đa khung hình.
         Đánh dấu sent = true để khóa track tránh quét trùng lặp.
         """
-        if tracked_obj.is_sent or tracked_obj.best_frame is None:
+        if tracked_obj.is_sent or (tracked_obj.best_frame is None and tracked_obj.best_face_crop is None):
             return None
 
         tracked_obj.is_sent = True
         identity_code = f"HS{tracked_obj.track_id:04d}"  # Mã học sinh định danh hoặc từ miai
+
+        # Trích xuất ảnh bằng chứng sắc nét nhất và vector đặc trưng hợp nhất đa khung hình
+        crisp_image = tracked_obj.get_crisp_evidence_image()
+        fused_vector = tracked_obj.get_fused_embedding()
+
+        # Mã hóa JPEG chất lượng cao (quality=95) cho ảnh bằng chứng khuôn mặt
+        evidence_base64 = None
+        if crisp_image is not None and crisp_image.size > 0:
+            success, enc_buf = cv2.imencode(".jpg", crisp_image, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            if success:
+                import base64
+                evidence_base64 = base64.b64encode(enc_buf.tobytes()).decode("utf-8")
 
         scan_payload = {
             "identityCode": identity_code,
@@ -93,7 +109,11 @@ class EventDispatcher:
             "cameraId": camera_id,
             "scanTime": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
             "trackId": tracked_obj.track_id,
-            "qualityScore": round(tracked_obj.best_score, 3)
+            "qualityScore": round(tracked_obj.best_score, 3),
+            "laplacianVariance": round(tracked_obj.best_laplacian_var, 2),
+            "hasUsableFace": tracked_obj.has_usable_face(),
+            "fusedVector": fused_vector.tolist() if fused_vector is not None else None,
+            "evidenceImage": evidence_base64,
         }
 
         try:

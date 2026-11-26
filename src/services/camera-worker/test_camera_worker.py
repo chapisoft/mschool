@@ -84,11 +84,11 @@ def test_spatial_tripwire_classification():
     tripwire = SpatialTripwire(line_p1=(100, 300), line_p2=(500, 300), in_vector=(0, 1))
 
     # Quỹ đạo đi xuống (Y tăng): Vào (IN)
-    traj_in = [(300, 250), (300, 350)]
+    traj_in = [(300.0, 250.0), (300.0, 350.0)]
     assert tripwire.classify_direction(traj_in) == Direction.IN
 
     # Quỹ đạo đi lên (Y giảm): Ra (OUT)
-    traj_out = [(300, 350), (300, 250)]
+    traj_out = [(300.0, 350.0), (300.0, 250.0)]
     assert tripwire.classify_direction(traj_out) == Direction.OUT
 
 
@@ -212,20 +212,246 @@ def test_fastapi_streamer_and_dispatcher():
     dispatcher.stop()
 
 
+def test_face_quality_engine_laplacian_and_pose():
+    """Kiểm tra FaceQualityEngine: đo độ sắc nét Laplacian, lọc nhòe chuyển động và ước lượng góc đầu 3D."""
+    import cv2
+    from face_quality import FaceQualityEngine
+
+    fqa = FaceQualityEngine(min_laplacian_var=120.0, min_face_size=50)
+
+    # 1. Tạo ảnh sắc nét (nhiều biên cạnh sắc nét)
+    sharp_img = np.zeros((80, 80, 3), dtype=np.uint8)
+    for i in range(0, 80, 6):
+        sharp_img[i:i+3, :] = 220
+        sharp_img[:, i:i+3] = 220
+
+    # 2. Tạo ảnh mờ bằng cách áp dụng GaussianBlur mạnh
+    blurry_img = cv2.GaussianBlur(sharp_img, (21, 21), 0)
+
+    sharp_var = fqa.compute_laplacian_variance(sharp_img)
+    blurry_var = fqa.compute_laplacian_variance(blurry_img)
+
+    assert sharp_var > 500.0, f"Expected sharp variance > 500, got {sharp_var}"
+    assert blurry_var < 50.0, f"Expected blurry variance < 50, got {blurry_var}"
+    assert sharp_var > blurry_var * 10, "Độ sắc nét ảnh gốc phải vượt trội hoàn toàn ảnh bị nhòe"
+
+    # 3. Kiểm tra ước lượng góc đầu từ 5 keypoints
+    # Mũi chính giữa 2 mắt -> Nhìn thẳng (Yaw gần 0)
+    frontal_kpts = np.array([
+        [40.0, 45.0, 0.9],   # nose
+        [28.0, 32.0, 0.9],   # left_eye
+        [52.0, 32.0, 0.9],   # right_eye
+        [15.0, 40.0, 0.8],   # left_ear
+        [65.0, 40.0, 0.8],   # right_ear
+    ], dtype=np.float32)
+
+    yaw, pitch, roll = fqa.estimate_head_pose(frontal_kpts)
+    assert abs(yaw) < 5.0, f"Mặt nhìn thẳng thì Yaw phải < 5°, thực tế: {yaw}"
+    assert abs(roll) < 5.0, f"Mặt không nghiêng thì Roll phải < 5°, thực tế: {roll}"
+
+    # Đánh giá chất lượng khuôn mặt nhìn thẳng sắc nét
+    score = fqa.evaluate_quality(sharp_img, frontal_kpts)
+    assert score.is_sharp is True
+    assert score.is_frontal is True
+    assert score.is_usable is True
+    assert score.overall_score > 0.65
+
+
+def test_multi_frame_feature_fusion_and_candidates():
+    """Kiểm tra cơ chế lưu trữ Top-K Best-shots và hợp nhất đặc trưng đa khung hình L2."""
+    from face_quality import FaceQualityEngine, FaceQualityScore
+
+    fqa = FaceQualityEngine()
+    now = time.time()
+    track = TrackedObject(track_id=10, initial_bbox=[100, 100, 200, 300], initial_kpts=np.zeros((17, 3)), timestamp=now)
+
+    # Thêm 4 ứng viên khuôn mặt với độ sắc nét khác nhau
+    for idx, lap_score in enumerate([80.0, 240.0, 150.0, 310.0]):
+        crop = np.full((64, 64, 3), 100 + idx * 20, dtype=np.uint8)
+        frame = np.full((480, 640, 3), 50, dtype=np.uint8)
+        q_score = FaceQualityScore(
+            laplacian_var=lap_score,
+            is_sharp=lap_score >= 120.0,
+            yaw_angle=5.0,
+            pitch_angle=2.0,
+            roll_angle=1.0,
+            is_frontal=True,
+            brightness_ire=55.0,
+            is_well_lit=True,
+            face_width=64,
+            face_height=64,
+            interocular_distance=26.0,
+            is_size_valid=True,
+            overall_score=round(lap_score / 400.0, 3),
+            is_usable=lap_score >= 120.0,
+        )
+        emb = fqa.extract_simulated_adaface_embedding(crop)
+        track.add_face_candidate(crop, frame, q_score, timestamp=now + idx * 0.1, embedding=emb, max_candidates=5)
+
+    assert len(track.best_face_candidates) == 4
+    # Ứng viên đứng đầu phải là ứng viên có điểm cao nhất (lap_score = 310.0)
+    assert track.best_laplacian_var == 310.0
+    assert track.has_usable_face() is True
+
+    # Kiểm tra ảnh bằng chứng sắc nét nhất
+    crisp_img = track.get_crisp_evidence_image()
+    assert crisp_img is not None
+    assert crisp_img.shape == (64, 64, 3)
+
+    # Kiểm tra vector hợp nhất đa khung hình L2
+    fused_vec = track.get_fused_embedding()
+    assert fused_vec is not None
+    assert len(fused_vec) == 512
+    l2_norm = float(np.linalg.norm(fused_vec))
+    assert abs(l2_norm - 1.0) < 1e-4, f"Vector sau hợp nhất bắt buộc phải chuẩn hóa L2 = 1.0, thực tế: {l2_norm}"
+
+
+def test_crisp_attendance_event_dispatching():
+    """Kiểm tra đóng gói sự kiện điểm danh với ảnh bằng chứng sắc nét và vector L2."""
+    from face_quality import FaceQualityScore
+
+    dispatcher = EventDispatcher()
+    now = time.time()
+    track = TrackedObject(track_id=42, initial_bbox=[100, 100, 200, 300], initial_kpts=np.zeros((17, 3)), timestamp=now)
+
+    # Thêm 1 ảnh sắc nét
+    face_crop = np.full((70, 70, 3), 180, dtype=np.uint8)
+    full_frame = np.full((480, 640, 3), 120, dtype=np.uint8)
+    q_score = FaceQualityScore(
+        laplacian_var=260.0,
+        is_sharp=True,
+        yaw_angle=4.0,
+        pitch_angle=3.0,
+        roll_angle=0.0,
+        is_frontal=True,
+        brightness_ire=60.0,
+        is_well_lit=True,
+        face_width=70,
+        face_height=70,
+        interocular_distance=28.0,
+        is_size_valid=True,
+        overall_score=0.88,
+        is_usable=True,
+    )
+    track.add_face_candidate(face_crop, full_frame, q_score, timestamp=now, embedding=np.ones(512, dtype=np.float32) / np.sqrt(512))
+
+    payload = dispatcher.dispatch_attendance_event(track, camera_id="cam-gate-01", direction=Direction.IN)
+    assert payload is not None
+    assert payload["identityCode"] == "HS0042"
+    assert payload["direction"] == "IN"
+    assert payload["laplacianVariance"] == 260.0
+    assert payload["hasUsableFace"] is True
+    assert payload["fusedVector"] is not None
+    assert len(payload["fusedVector"]) == 512
+    assert payload["evidenceImage"] is not None
+    assert len(payload["evidenceImage"]) > 50  # Chuỗi base64 ảnh hợp lệ
+
+    dispatcher.stop()
+
+
+def test_enrollment_validation_gate_sharpness_and_pose():
+    """Kiểm tra cổng thẩm định đăng ký khuôn mặt (Enrollment Quality Gate): lọc mờ và kiểm tra góc quay."""
+    import cv2
+    from face_quality import FaceQualityEngine
+
+    fqa = FaceQualityEngine()
+
+    # 1. Ảnh sắc nét chuẩn đăng ký
+    sharp_face = np.zeros((300, 300, 3), dtype=np.uint8)
+    for i in range(0, 300, 10):
+        sharp_face[i:i+4, :] = 200
+        sharp_face[:, i:i+4] = 200
+
+    # Keypoints nhìn thẳng
+    frontal_kpts = np.array([
+        [150.0, 160.0, 0.95],  # nose
+        [110.0, 115.0, 0.95],  # left_eye
+        [190.0, 115.0, 0.95],  # right_eye
+        [70.0, 130.0, 0.90],   # left_ear
+        [230.0, 130.0, 0.90],  # right_ear
+    ], dtype=np.float32)
+
+    # Thử nghiệm ảnh sắc nét nhìn thẳng -> Phải hợp lệ
+    res_valid = fqa.validate_enrollment_image(sharp_face, frontal_kpts, angle_type="straight")
+    assert res_valid.is_valid is True, f"Expected valid enrollment, got code={res_valid.feedback_code}: {res_valid.feedback_message}"
+    assert res_valid.is_sharp is True
+    assert res_valid.aligned_face_112 is not None
+    assert res_valid.aligned_face_112.shape == (112, 112, 3)
+    assert res_valid.high_res_portrait is not None
+    assert res_valid.high_res_portrait.shape == (600, 600, 3)
+    assert res_valid.embedding_512 is not None
+    assert len(res_valid.embedding_512) == 512
+
+    # 2. Thử nghiệm ảnh bị nhòe mờ -> Bị từ chối ERR_BLURRY_IMAGE
+    blurry_face = cv2.GaussianBlur(sharp_face, (31, 31), 0)
+    res_blurry = fqa.validate_enrollment_image(blurry_face, frontal_kpts, angle_type="straight")
+    assert res_blurry.is_valid is False
+    assert res_blurry.feedback_code == "ERR_BLURRY_IMAGE"
+    assert "mờ nhòe" in res_blurry.feedback_message
+
+    # 3. Thử nghiệm góc quay đầu bị lệch (Yaw lớn) khi yêu cầu nhìn thẳng -> Bị từ chối ERR_OFF_ANGLE
+    turned_kpts = np.array([
+        [185.0, 160.0, 0.95],  # nose lệch hẳn sang phải
+        [110.0, 115.0, 0.95],  # left_eye
+        [190.0, 115.0, 0.95],  # right_eye
+        [70.0, 130.0, 0.90],   # left_ear
+        [230.0, 130.0, 0.90],  # right_ear
+    ], dtype=np.float32)
+    res_off_angle = fqa.validate_enrollment_image(sharp_face, turned_kpts, angle_type="straight")
+    assert res_off_angle.is_valid is False
+    assert res_off_angle.feedback_code == "ERR_OFF_ANGLE"
+
+
+def test_canonical_face_affine_alignment_5pt():
+    """Kiểm tra căn chỉnh chuẩn tắc 112×112 bằng phép biến đổi tương đồng Affine."""
+    from face_quality import FaceQualityEngine
+
+    # Tạo khung hình với 2 mắt bị nghiêng góc 15 độ (Roll)
+    frame = np.full((400, 400, 3), 150, dtype=np.uint8)
+    tilted_kpts = np.array([
+        [200.0, 220.0, 0.9],   # nose
+        [140.0, 160.0, 0.9],   # left_eye (thấp hơn)
+        [260.0, 190.0, 0.9],   # right_eye (cao hơn)
+    ], dtype=np.float32)
+
+    aligned = FaceQualityEngine.align_canonical_face(frame, tilted_kpts, (112, 112))
+    assert aligned is not None
+    assert aligned.shape == (112, 112, 3)
+
+    # Kiểm tra mã hóa ảnh độ nét cao JPEG Quality 98%
+    raw_jpg = FaceQualityEngine.encode_crisp_image(aligned, quality=98)
+    assert raw_jpg is not None
+    assert len(raw_jpg) > 500
+
+    b64_str = FaceQualityEngine.encode_crisp_image_base64(aligned, quality=98)
+    assert b64_str is not None
+    assert len(b64_str) > 700
+
+
 if __name__ == "__main__":
     print("Executing mschool Camera Worker Unit Tests...")
     test_rtmo_pose_engine_detection_and_overlay()
-    print("1/7 test_rtmo_pose_engine_detection_and_overlay: PASSED")
+    print("1/12 test_rtmo_pose_engine_detection_and_overlay: PASSED")
     test_bytetrack_tracker_multi_object()
-    print("2/7 test_bytetrack_tracker_multi_object: PASSED")
+    print("2/12 test_bytetrack_tracker_multi_object: PASSED")
     test_spatial_tripwire_classification()
-    print("3/7 test_spatial_tripwire_classification: PASSED")
+    print("3/12 test_spatial_tripwire_classification: PASSED")
     test_exam_proctoring_cheating_detection()
-    print("4/7 test_exam_proctoring_cheating_detection: PASSED")
+    print("4/12 test_exam_proctoring_cheating_detection: PASSED")
     test_classroom_engagement_disruptive_detection()
-    print("5/7 test_classroom_engagement_disruptive_detection: PASSED")
+    print("5/12 test_classroom_engagement_disruptive_detection: PASSED")
     test_campus_safety_5phase_debounced_fall()
-    print("6/7 test_campus_safety_5phase_debounced_fall: PASSED")
+    print("6/12 test_campus_safety_5phase_debounced_fall: PASSED")
     test_fastapi_streamer_and_dispatcher()
-    print("7/7 test_fastapi_streamer_and_dispatcher: PASSED")
-    print("All 7/7 Unit Tests PASSED successfully!")
+    print("7/12 test_fastapi_streamer_and_dispatcher: PASSED")
+    test_face_quality_engine_laplacian_and_pose()
+    print("8/12 test_face_quality_engine_laplacian_and_pose: PASSED")
+    test_multi_frame_feature_fusion_and_candidates()
+    print("9/12 test_multi_frame_feature_fusion_and_candidates: PASSED")
+    test_crisp_attendance_event_dispatching()
+    print("10/12 test_crisp_attendance_event_dispatching: PASSED")
+    test_enrollment_validation_gate_sharpness_and_pose()
+    print("11/12 test_enrollment_validation_gate_sharpness_and_pose: PASSED")
+    test_canonical_face_affine_alignment_5pt()
+    print("12/12 test_canonical_face_affine_alignment_5pt: PASSED")
+    print("All 12/12 Unit Tests PASSED successfully!")

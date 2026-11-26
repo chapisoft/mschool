@@ -55,10 +55,21 @@ class WorkerSettings(BaseModel):
     CONFIDENCE_THRESHOLD: float = float(os.getenv("CONFIDENCE_THRESHOLD", "0.45"))
     NMS_IOU_THRESHOLD: float = float(os.getenv("NMS_IOU_THRESHOLD", "0.50"))
 
-    # Ngưỡng thuật toán Điểm danh cổng
+    # Ngưỡng thuật toán Điểm danh cổng & Đánh giá chất lượng khuôn mặt (FQA)
     EDIF_FIQA_THRESHOLD: float = float(os.getenv("EDIF_FIQA_THRESHOLD", "0.85"))
     MAX_TRACK_DURATION_SEC: float = float(os.getenv("MAX_TRACK_DURATION_SEC", "0.80"))
     RTSP_BUFFER_SIZE: int = int(os.getenv("RTSP_BUFFER_SIZE", "1"))
+    MIN_LAPLACIAN_VAR: float = float(os.getenv("MIN_LAPLACIAN_VAR", "120.0"))
+    MIN_FACE_SIZE: int = int(os.getenv("MIN_FACE_SIZE", "50"))
+    MIN_IOD: float = float(os.getenv("MIN_IOD", "22.0"))
+    MAX_FACE_YAW_DEGREE: float = float(os.getenv("MAX_FACE_YAW_DEGREE", "20.0"))
+    MAX_FACE_PITCH_DEGREE: float = float(os.getenv("MAX_FACE_PITCH_DEGREE", "15.0"))
+    MAX_FACE_ROLL_DEGREE: float = float(os.getenv("MAX_FACE_ROLL_DEGREE", "15.0"))
+    MIN_FACE_BRIGHTNESS_IRE: float = float(os.getenv("MIN_FACE_BRIGHTNESS_IRE", "35.0"))
+    MAX_FACE_BRIGHTNESS_IRE: float = float(os.getenv("MAX_FACE_BRIGHTNESS_IRE", "85.0"))
+    MULTI_FRAME_FUSION_COUNT: int = int(os.getenv("MULTI_FRAME_FUSION_COUNT", "5"))
+    ADAFACE_SIMILARITY_THRESHOLD: float = float(os.getenv("ADAFACE_SIMILARITY_THRESHOLD", "0.74"))
+    ADAFACE_MODEL_PATH: str = os.getenv("ADAFACE_MODEL_PATH", "models/adaface_ir50.onnx")
 
     # Ngưỡng thuật toán Giám thị số & Gian lận phòng thi
     HEAD_YAW_DEGREE_THRESHOLD: float = float(os.getenv("HEAD_YAW_DEGREE_THRESHOLD", "40.0"))

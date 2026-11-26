@@ -8,8 +8,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useTranslation } from '@/context/LanguageContext';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('Admin@2026');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,10 +27,10 @@ export default function LoginPage() {
       if (result.success) {
         router.replace('/dashboard');
       } else {
-        setErrorMessage(result.message || 'Đăng nhập không thành công');
+        setErrorMessage(result.message || t('login.loginFailed'));
       }
     } catch (err) {
-      setErrorMessage('Đã xảy ra lỗi kết nối. Vui lòng thử lại.');
+      setErrorMessage(t('login.networkError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -50,7 +50,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-6">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Cổng Xác Thực An Ninh Học Đường</span>
+              <span>{t('login.badgeSecurity')}</span>
             </div>
           </div>
 
@@ -61,7 +61,7 @@ export default function LoginPage() {
               MSCHOOL
             </h1>
             <p className="text-sm text-slate-500 mt-1 font-medium">
-              Hệ thống Quản trị Trường học Thông minh
+              {t('login.systemSubtitle')}
             </p>
           </div>
 
@@ -77,7 +77,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">
-                Tên đăng nhập
+                {t('login.usernameLabel')}
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -86,7 +86,7 @@ export default function LoginPage() {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Nhập tài khoản (vd: admin)"
+                  placeholder={t('login.usernamePlaceholder')}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
                 />
               </div>
@@ -94,7 +94,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">
-                Mật khẩu
+                {t('login.passwordLabel')}
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -103,7 +103,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Nhập mật khẩu"
+                  placeholder={t('login.passwordPlaceholder')}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-11 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
                 />
                 <button
@@ -122,10 +122,10 @@ export default function LoginPage() {
               className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-sky-600 via-cyan-600 to-emerald-600 hover:from-sky-500 hover:via-cyan-500 hover:to-emerald-500 text-white font-bold text-sm shadow-md shadow-sky-600/20 transition-all flex items-center justify-center gap-2 group disabled:opacity-60"
             >
               {isSubmitting ? (
-                <span>Đang xác thực...</span>
+                <span>{t('login.authenticating')}</span>
               ) : (
                 <>
-                  <span>Đăng Nhập Quản Trị</span>
+                  <span>{t('login.loginBtn')}</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </>
               )}
@@ -137,11 +137,11 @@ export default function LoginPage() {
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-700 mb-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-sky-600" />
-                <span>Tài khoản thử nghiệm sẵn có:</span>
+                <span>{t('login.demoNotice')}</span>
               </div>
               <div className="flex items-center justify-between text-xs text-slate-600 font-mono">
-                <span>Tài khoản: <strong className="text-slate-900">admin</strong></span>
-                <span>Mật khẩu: <strong className="text-slate-900">Admin@2026</strong></span>
+                <span>{t('login.demoAccount')} <strong className="text-slate-900">admin</strong></span>
+                <span>{t('login.demoPassword')} <strong className="text-slate-900">Admin@2026</strong></span>
               </div>
             </div>
           </div>
@@ -149,7 +149,7 @@ export default function LoginPage() {
 
         {/* Footer bản quyền */}
         <p className="text-center text-xs text-slate-400 mt-6">
-          © 2026 MSCHOOL. Nền tảng Quản trị và Điểm danh Khuôn mặt Thông minh.
+          {t('login.copyright')}
         </p>
       </div>
     </div>

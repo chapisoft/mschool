@@ -190,11 +190,11 @@ export default function CamerasPage() {
       await postApi(`/biometrics/auto-attendance/toggle?enabled=${nextState}`, {});
       setIsAutoAttendanceEnabled(nextState);
       showSuccess(
-        'Chế độ tự động điểm danh qua Camera',
-        nextState ? 'Đã kích hoạt quét khuôn mặt và tự động ghi nhận điểm danh' : 'Đã tạm dừng tự động điểm danh'
+        t('cameras.autoAttendanceTitle'),
+        nextState ? t('cameras.autoAttendanceEnabledMsg') : t('cameras.autoAttendanceDisabledMsg')
       );
     } catch (err: any) {
-      showError('Lỗi cập nhật chế độ điểm danh tự động', err.message);
+      showError(t('cameras.autoAttendanceError'), err.message);
     }
   };
 
@@ -807,10 +807,10 @@ export default function CamerasPage() {
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
                     : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
                 }`}
-                title="Bật/Tắt chế độ tự động quét khuôn mặt và điểm danh học sinh từ camera"
+                title={t('cameras.autoAttendanceTooltip')}
               >
                 <span className={`w-2 h-2 rounded-full ${isAutoAttendanceEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                <span>{isAutoAttendanceEnabled ? 'Tự động điểm danh: BẬT' : 'Tự động: TẮT'}</span>
+                <span>{isAutoAttendanceEnabled ? t('cameras.autoAttendanceOn') : t('cameras.autoAttendanceOff')}</span>
               </button>
 
               {/* Nút Thử nghiệm Nhận diện khuôn mặt */}
@@ -819,10 +819,10 @@ export default function CamerasPage() {
                 onClick={() => setIsFaceTestModalOpen(true)}
                 disabled={!selectedCam}
                 className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-xs font-semibold text-indigo-700 border border-indigo-200 shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap cursor-pointer"
-                title="Thử nghiệm nhận diện khuôn mặt độc lập từ Camera hoặc tải ảnh"
+                title={t('cameras.testRecognitionTitle')}
               >
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Thử nghiệm nhận diện</span>
+                <span>{t('biometrics.testRecognition')}</span>
               </button>
 
               <button
@@ -1658,7 +1658,7 @@ export default function CamerasPage() {
         cameraName={selectedCam?.name}
         tripwireDirection={selectedCam?.tripwireDirection}
         onAttendanceSuccess={() => {
-          showInfo('Điểm danh tự động', 'Bản ghi điểm danh vừa được lưu vào Sổ cái hệ thống');
+          showInfo(t('cameras.autoRecordTitle'), t('cameras.autoRecordSaved'));
         }}
       />
     </div>

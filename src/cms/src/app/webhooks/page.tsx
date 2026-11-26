@@ -43,7 +43,7 @@ export default function WebhooksPage() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [webhookForm, setWebhookForm] = useState({
     name: '',
-    targetUrl: 'https://',
+    targetUrl: '',
     secretKey: '',
     eventType: WebhookEventType.ATTENDANCE_CHECKIN,
   });
@@ -82,8 +82,8 @@ export default function WebhooksPage() {
   const handleOpenCreate = () => {
     setWebhookForm({
       name: '',
-      targetUrl: 'https://api.example.com/webhook/attendance',
-      secretKey: 'sec_' + Math.random().toString(36).substring(2, 12),
+      targetUrl: '',
+      secretKey: '',
       eventType: WebhookEventType.ATTENDANCE_CHECKIN,
     });
     setIsModalOpen(true);
@@ -93,27 +93,27 @@ export default function WebhooksPage() {
     e.preventDefault();
     try {
       await postApi('/webhooks', webhookForm);
-      showSuccess('Thêm Webhook', `Đã đăng ký điểm tiếp nhận ${webhookForm.name}`);
+      showSuccess(t('webhooks.createSuccessTitle'), t('webhooks.createSuccessMsg', { name: webhookForm.name }));
       setIsModalOpen(false);
       loadWebhooks();
     } catch (err: any) {
-      showError('Đăng ký Webhook thất bại', err.message);
+      showError(t('webhooks.createError'), err.message);
     }
   };
 
   const handleDeleteWebhook = (wh: WebhookItem) => {
-    const title = wh.name || wh.subscriberName || 'Webhook';
+    const title = wh.name || wh.subscriberName || t('webhooks.defaultPartnerName');
     setConfirmDialog({
       isOpen: true,
-      title: 'Hủy Điểm Tiếp Nhận Webhook',
-      message: `Bạn có chắc chắn muốn hủy đăng ký Webhook "${title}" (${wh.targetUrl})? Dữ liệu điểm danh thời gian thực sẽ dừng chuyển tiếp tới đối tác này.`,
+      title: t('webhooks.deleteConfirmTitle'),
+      message: t('webhooks.deleteConfirmMsg', { title, url: wh.targetUrl }),
       action: async () => {
         try {
           await deleteApi(`/webhooks/${wh.id}`);
-          showSuccess('Hủy Webhook', `Đã hủy kết nối Webhook ${title}`);
+          showSuccess(t('webhooks.deleteSuccessTitle'), t('webhooks.deleteSuccessMsg', { title }));
           loadWebhooks();
         } catch (err: any) {
-          showError('Lỗi hủy Webhook', err.message);
+          showError(t('webhooks.deleteError'), err.message);
         } finally {
           setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
         }
@@ -124,13 +124,13 @@ export default function WebhooksPage() {
   const handleTestPing = async (wh: WebhookItem) => {
     setTestingId(wh.id);
     try {
-      const res = await postApi<any>(`/webhooks/${wh.id}/test`);
+      await postApi<any>(`/webhooks/${wh.id}/test`);
       showSuccess(
-        'Kiểm tra kết nối Webhook (Test Ping)',
-        `Gửi gói tin mẫu tới ${wh.targetUrl} thành công! Mã phản hồi HTTP: 200 OK (85ms)`
+        t('webhooks.testPingTitle'),
+        t('webhooks.pingSuccess', { url: wh.targetUrl })
       );
     } catch (err: any) {
-      showError('Lỗi kiểm tra Webhook', err.message);
+      showError(t('webhooks.testPingError'), err.message);
     } finally {
       setTestingId(null);
     }
@@ -182,7 +182,7 @@ export default function WebhooksPage() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-bold text-slate-900 text-base flex items-center gap-2">
                     <Radio className="w-4 h-4 text-sky-600" />
-                    {wh.name || wh.subscriberName || 'Hệ thống đối tác'}
+                    {wh.name || wh.subscriberName || t('webhooks.defaultPartnerName')}
                   </span>
                   <span
                     className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${
@@ -201,15 +201,15 @@ export default function WebhooksPage() {
 
                 <div className="text-xs text-slate-500 space-y-1">
                   <div>
-                    Sự kiện:{' '}
+                    {t('webhooks.eventLabel')}{' '}
                     <span className="text-sky-700 font-mono font-semibold">
                       {wh.eventType || 'ATTENDANCE_CHECKIN'}
                     </span>
                   </div>
                   <div>
-                    Lần gửi gần nhất:{' '}
+                    {t('webhooks.lastDeliveryLabel')}{' '}
                     <span className="text-emerald-700 font-mono font-semibold">
-                      {wh.lastDeliveryStatus || '200 OK (85ms)'}
+                      {wh.lastDeliveryStatus || '--'}
                     </span>
                   </div>
                 </div>
@@ -222,12 +222,12 @@ export default function WebhooksPage() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors disabled:opacity-50"
                 >
                   <Send className={`w-3 h-3 text-sky-600 ${testingId === wh.id ? 'animate-spin' : ''}`} />
-                  <span>{testingId === wh.id ? 'Đang gửi...' : 'Gửi Thử Nghiệm'}</span>
+                  <span>{testingId === wh.id ? t('webhooks.sending') : t('webhooks.sendTestBtn')}</span>
                 </button>
                 <button
                   onClick={() => handleDeleteWebhook(wh)}
                   className="p-1.5 text-rose-600 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors"
-                  title="Hủy Webhook"
+                  title={t('webhooks.deleteTooltip')}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -243,63 +243,63 @@ export default function WebhooksPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Đăng Ký Điểm Tiếp Nhận Webhook Mới"
+        title={t('webhooks.modalTitle')}
         maxWidth="md"
       >
         <form onSubmit={handleCreateWebhook} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Tên hệ thống tiếp nhận <span className="text-rose-500">*</span>
+              {t('webhooks.nameLabel')} <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={webhookForm.name}
               onChange={(e) => setWebhookForm({ ...webhookForm, name: e.target.value })}
-              placeholder="ví dụ: Cổng dữ liệu vnEdu Sở GD&ĐT"
+              placeholder={t('webhooks.namePlaceholder')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Địa chỉ Webhook URL (HTTPS) <span className="text-rose-500">*</span>
+              {t('webhooks.urlLabel')} <span className="text-rose-500">*</span>
             </label>
             <input
               type="url"
               required
               value={webhookForm.targetUrl}
               onChange={(e) => setWebhookForm({ ...webhookForm, targetUrl: e.target.value })}
-              placeholder="https://api.partner.vn/webhook/mschool"
+              placeholder={t('webhooks.urlPlaceholder')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Khóa ký số bảo mật (Secret Key)
+              {t('webhooks.secretLabel')}
             </label>
             <input
               type="text"
               value={webhookForm.secretKey}
               onChange={(e) => setWebhookForm({ ...webhookForm, secretKey: e.target.value })}
-              placeholder="sec_..."
+              placeholder={t('webhooks.placeholderSecret')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-sky-500"
             />
-            <p className="text-[11px] text-slate-500 mt-1">Dùng để tạo chữ ký HMAC-SHA256 xác thực nguồn gốc bản tin</p>
+            <p className="text-[11px] text-slate-500 mt-1">{t('webhooks.secretHint')}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Loại sự kiện chuyển tiếp</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('webhooks.eventTypeLabel')}</label>
             <select
               value={webhookForm.eventType}
               onChange={(e) => setWebhookForm({ ...webhookForm, eventType: e.target.value as WebhookEventType })}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             >
-              <option value={WebhookEventType.ATTENDANCE_CHECKIN}>Điểm danh vào cổng (ATTENDANCE_CHECKIN)</option>
-              <option value={WebhookEventType.ATTENDANCE_CHECKOUT}>Điểm danh ra về (ATTENDANCE_CHECKOUT)</option>
-              <option value={WebhookEventType.CLASSROOM_EVALUATED}>Sĩ số lớp học (CLASSROOM_EVALUATED)</option>
-              <option value={WebhookEventType.STRANGER_DETECTED}>Cảnh báo người lạ (STRANGER_DETECTED)</option>
+              <option value={WebhookEventType.ATTENDANCE_CHECKIN}>{t('webhooks.eventCheckIn')}</option>
+              <option value={WebhookEventType.ATTENDANCE_CHECKOUT}>{t('webhooks.eventCheckOut')}</option>
+              <option value={WebhookEventType.CLASSROOM_EVALUATED}>{t('webhooks.eventClassroom')}</option>
+              <option value={WebhookEventType.STRANGER_DETECTED}>{t('webhooks.eventStranger')}</option>
             </select>
           </div>
 
@@ -315,7 +315,7 @@ export default function WebhooksPage() {
               type="submit"
               className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-xs"
             >
-              Kích Hoạt Webhook
+              {t('webhooks.activateBtn')}
             </button>
           </div>
         </form>

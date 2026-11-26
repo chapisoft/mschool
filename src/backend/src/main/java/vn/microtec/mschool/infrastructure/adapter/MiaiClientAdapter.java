@@ -92,6 +92,10 @@ public class MiaiClientAdapter {
         private String feedbackCode;
         private String feedbackMessage;
         private Double processingTimeMs;
+        private Double laplacianScore;
+        private Boolean isSharp;
+        private String alignedFaceBase64;
+        private String highResPortraitBase64;
     }
 
     @Getter
@@ -215,10 +219,15 @@ public class MiaiClientAdapter {
                 cleanBase64 = cleanBase64.substring(cleanBase64.indexOf(",") + 1);
             }
 
+            double minQuality = 0.50;
+            if (angleType != null && !angleType.trim().equalsIgnoreCase("straight")) {
+                minQuality = 0.28;
+            }
+
             FaceEnrollAiRequest req = FaceEnrollAiRequest.builder()
                     .image_base64(cleanBase64)
                     .angle_type(angleType != null ? angleType : "straight")
-                    .min_quality(0.60)
+                    .min_quality(minQuality)
                     .select_largest(true)
                     .build();
 
@@ -278,6 +287,13 @@ public class MiaiClientAdapter {
                             .toList();
                 }
 
+                Double laplacianScore = data.get("laplacian_score") instanceof Number
+                        ? ((Number) data.get("laplacian_score")).doubleValue() : null;
+                Boolean isSharp = data.get("is_sharp") instanceof Boolean
+                        ? (Boolean) data.get("is_sharp") : (laplacianScore != null ? laplacianScore >= 150.0 : true);
+                String alignedFaceBase64 = data.get("aligned_face_base64") != null ? data.get("aligned_face_base64").toString() : null;
+                String highResPortraitBase64 = data.get("high_res_portrait_base64") != null ? data.get("high_res_portrait_base64").toString() : null;
+
                 return FaceEnrollAiResponse.builder()
                         .isValid(isValid)
                         .qualityScore(qualityScore)
@@ -290,6 +306,10 @@ public class MiaiClientAdapter {
                         .feedbackCode(feedbackCode)
                         .feedbackMessage(feedbackMessage)
                         .processingTimeMs(processingTime)
+                        .laplacianScore(laplacianScore)
+                        .isSharp(isSharp)
+                        .alignedFaceBase64(alignedFaceBase64)
+                        .highResPortraitBase64(highResPortraitBase64)
                         .build();
             }
 
@@ -308,6 +328,8 @@ public class MiaiClientAdapter {
                 .feedbackCode(fallbackCode != null ? fallbackCode : "ENROLL_SUCCESS")
                 .feedbackMessage(fallbackCode != null ? fallbackCode : "ENROLL_SUCCESS")
                 .processingTimeMs(15.0)
+                .laplacianScore(180.0)
+                .isSharp(true)
                 .build();
     }
 

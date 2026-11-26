@@ -24,6 +24,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import Modal from '@/components/Modal';
+import { useTranslation } from '@/context/LanguageContext';
 import { postApi, getApi } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
 import {
@@ -162,6 +163,7 @@ export default function FaceRecognitionTestModal({
   onAttendanceSuccess,
 }: FaceRecognitionTestModalProps) {
   const { showSuccess, showError, showInfo } = useToast();
+  const { t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<RecognitionTabMode>(defaultTab);
   const [threshold, setThreshold] = useState<number>(0.50);
@@ -212,7 +214,7 @@ export default function FaceRecognitionTestModal({
           setCameraList([]);
         }
       } catch (e) {
-        console.warn('Lấy danh sách camera từ máy chủ:', e);
+        console.warn('Failed to load cameras:', e);
         setCameraList([]);
       }
     };
@@ -266,8 +268,8 @@ export default function FaceRecognitionTestModal({
       }
       setIsDeviceCamActive(true);
     } catch (err: any) {
-      console.warn('Lỗi mở camera thiết bị:', err);
-      setDeviceCamError('Không thể mở camera thiết bị. Vui lòng cấp quyền truy cập camera trong trình duyệt.');
+      console.warn('Failed to open device camera:', err);
+      setDeviceCamError(t('biometrics.cameraPermissionError'));
       setIsDeviceCamActive(false);
     }
   };
@@ -306,7 +308,7 @@ export default function FaceRecognitionTestModal({
     if (isLoading) return;
     const video = videoRef.current;
     if (!video) {
-      showError('Không tìm thấy camera', 'Vui lòng đảm bảo camera của thiết bị đã được bật');
+      showError(t('faceTest.cameraNotFound'), t('faceTest.cameraNotFoundMsg'));
       return;
     }
 
@@ -324,7 +326,7 @@ export default function FaceRecognitionTestModal({
       canvas.height = targetH;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        throw new Error('Không thể khởi tạo bộ đệm Canvas');
+        throw new Error('Failed to initialize Canvas buffer');
       }
 
       // Vẽ đúng chiều thực tế của camera (không lật gương) để bảo đảm tính tương đồng sinh trắc học
@@ -338,8 +340,8 @@ export default function FaceRecognitionTestModal({
 
       await analyzeUploadedImage(base64Data);
     } catch (err: any) {
-      console.error('Lỗi chụp từ camera thiết bị:', err);
-      showError('Lỗi chụp hình', err.message || 'Không thể chụp khung hình từ camera');
+      console.error('Failed to capture frame:', err);
+      showError(t('faceTest.captureError'), err.message || t('faceTest.captureErrorMsg'));
       setIsLoading(false);
     }
   };
@@ -383,10 +385,10 @@ export default function FaceRecognitionTestModal({
           }
         }
       } catch (e) {
-        console.warn('Lỗi fetch snapshot:', url, e);
+        console.warn('Failed to fetch snapshot:', url, e);
       }
     }
-    throw new Error('Không thể tải khung hình snapshot từ Camera IP');
+    throw new Error('Failed to load snapshot from IP camera');
   };
 
   // Nhận diện từ Camera IP giám sát
@@ -412,13 +414,13 @@ export default function FaceRecognitionTestModal({
             setImagePreview(getCameraSnapshotUrl(currentCameraId, Date.now()));
           }
           if (resp.matched) {
-            showSuccess('Nhận diện khuôn mặt thành công', resp.feedbackMessage || 'Đã khớp hồ sơ học sinh/cán bộ');
+            showSuccess(t('faceTest.toastRecognizedSuccess'), resp.feedbackMessage || t('faceTest.toastRecognizedMatched'));
           } else {
-            showInfo('Kết quả nhận diện', resp.feedbackMessage || 'Không phát hiện hồ sơ phù hợp');
+            showInfo(t('faceTest.toastRecognizedSuccess'), resp.feedbackMessage || t('faceTest.toastRecognizedNoMatch'));
           }
         }
       } catch (err: any) {
-        console.log('Chuyển sang phương án dự phòng lấy snapshot trực tiếp từ Camera IP...');
+        console.log('Fallback to direct camera snapshot...');
       }
 
       // 2. Phương án dự phòng: Bắt snapshot từ Camera IP Stream và gửi tới /test-recognition
@@ -434,13 +436,13 @@ export default function FaceRecognitionTestModal({
 
         setResult(resp);
         if (resp?.matched) {
-          showSuccess('Nhận diện khuôn mặt thành công', resp.feedbackMessage || 'Đã khớp hồ sơ học sinh/cán bộ');
+          showSuccess(t('faceTest.toastRecognizedSuccess'), resp.feedbackMessage || t('faceTest.toastRecognizedMatched'));
         } else {
-          showInfo('Kết quả nhận diện', resp?.feedbackMessage || 'Không phát hiện hồ sơ phù hợp');
+          showInfo(t('faceTest.toastRecognizedSuccess'), resp?.feedbackMessage || t('faceTest.toastRecognizedNoMatch'));
         }
       }
     } catch (err: any) {
-      showError('Lỗi kiểm tra nhận diện từ camera', err.message || 'Không thể bắt khung hình camera');
+      showError(t('faceTest.ipCamError'), err.message || t('faceTest.captureErrorMsg'));
     } finally {
       setIsLoading(false);
     }
@@ -466,17 +468,14 @@ export default function FaceRecognitionTestModal({
         imageBase64: imagePreview,
         angleType: angle,
       });
-      showSuccess(
-        'Đồng bộ khuôn mặt thành công',
-        `Đã nạp và cập nhật véc-tơ chuẩn (${angle}) từ camera vào hồ sơ ${identityCode}`
-      );
+      showSuccess(t('faceTest.toastSyncSuccess'), t('faceTest.toastSyncSuccessMsg', { angle, code: identityCode }));
       if (activeTab === RecognitionTabMode.IP_CAMERA) {
         await handleTestFromCamera();
       } else {
         await analyzeUploadedImage(imagePreview);
       }
     } catch (err: any) {
-      showError('Lỗi cập nhật khuôn mặt', err.message);
+      showError(t('faceTest.updateFaceError'), err.message);
     } finally {
       setIsAssigning(false);
     }
@@ -522,12 +521,12 @@ export default function FaceRecognitionTestModal({
       });
       setResult(resp);
       if (resp?.matched) {
-        showSuccess('Nhận diện khuôn mặt thành công', resp.feedbackMessage || 'Đã khớp hồ sơ học sinh/cán bộ');
+        showSuccess(t('faceTest.toastRecognizedSuccess'), resp.feedbackMessage || t('faceTest.toastRecognizedMatched'));
       } else {
-        showInfo('Kết quả nhận diện', resp?.feedbackMessage || 'Không phát hiện hồ sơ phù hợp');
+        showInfo(t('faceTest.toastRecognizedSuccess'), resp?.feedbackMessage || t('faceTest.toastRecognizedNoMatch'));
       }
     } catch (err: any) {
-      showError('Lỗi phân tích hình ảnh', err.message);
+      showError(t('faceTest.imageAnalysisError'), err.message);
     } finally {
       setIsLoading(false);
     }
@@ -546,22 +545,19 @@ export default function FaceRecognitionTestModal({
         scanTime: new Date().toISOString(),
       });
       setAttendanceRecorded(true);
-      showSuccess(
-        'Ghi nhận điểm danh thành công',
-        `Đã cập nhật phiên điểm danh cho ${result.fullName} (${result.identityCode})`
-      );
+      showSuccess(t('faceTest.toastAttendanceSuccess'), t('faceTest.toastAttendanceSuccessMsg', { name: result.fullName, code: result.identityCode }));
       if (onAttendanceSuccess) {
         onAttendanceSuccess();
       }
     } catch (err: any) {
-      showError('Lỗi ghi nhận điểm danh', err.message);
+      showError(t('faceTest.recordAttendanceError'), err.message);
     } finally {
       setIsSubmittingAttendance(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Thử Nghiệm Nhận Diện Khuôn Mặt & Điểm Danh" maxWidth="3xl">
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('faceTest.modalTitle')} maxWidth="3xl">
       <div className="p-6 space-y-6">
         {/* Canvas ẩn phục vụ chụp frame */}
         <canvas ref={canvasRef} className="hidden" />
@@ -584,7 +580,7 @@ export default function FaceRecognitionTestModal({
               }`}
             >
               <Laptop className="w-3.5 h-3.5" />
-              <span>Camera thiết bị</span>
+              <span>{t('faceTest.tabDeviceCam')}</span>
             </button>
 
             {/* NGUỒN 2: CAMERA IP GIÁM SÁT */}
@@ -603,7 +599,7 @@ export default function FaceRecognitionTestModal({
               }`}
             >
               <Camera className="w-3.5 h-3.5" />
-              <span>Camera IP giám sát</span>
+              <span>{t('faceTest.tabIpCam')}</span>
             </button>
 
             {/* NGUỒN 3: TẢI ẢNH LÊN */}
@@ -620,7 +616,7 @@ export default function FaceRecognitionTestModal({
               }`}
             >
               <Upload className="w-3.5 h-3.5" />
-              <span>Tải ảnh thử nghiệm</span>
+              <span>{t('faceTest.tabUpload')}</span>
             </button>
             <input
               type="file"
@@ -633,17 +629,17 @@ export default function FaceRecognitionTestModal({
 
           <div className="flex items-center gap-2 text-xs flex-shrink-0">
             <Sliders className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-slate-600 font-medium">Ngưỡng khớp:</span>
+            <span className="text-slate-600 font-medium">{t('faceTest.thresholdLabel')}</span>
             <select
               value={threshold}
               onChange={(e) => setThreshold(parseFloat(e.target.value))}
               className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-2xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
-              <option value={0.45}>45% — Nhạy bén (Người đi xa, bước nhanh, góc nghiêng)</option>
-              <option value={0.50}>50% — Tiêu chuẩn khuyến nghị (Camera IP giám sát)</option>
-              <option value={0.58}>58% — Chặt chẽ (Khoảng cách gần, ánh sáng chuẩn)</option>
-              <option value={0.65}>65% — Nghiêm ngặt (Kiểm soát e-Gate)</option>
-              <option value={0.72}>72% — Tối đa (Chỉ ảnh thẻ studio)</option>
+              <option value={0.45}>{t('faceTest.threshold_45')}</option>
+              <option value={0.50}>{t('faceTest.threshold_50')}</option>
+              <option value={0.58}>{t('faceTest.threshold_58')}</option>
+              <option value={0.65}>{t('faceTest.threshold_65')}</option>
+              <option value={0.72}>{t('faceTest.threshold_72')}</option>
             </select>
           </div>
         </div>
@@ -654,7 +650,7 @@ export default function FaceRecognitionTestModal({
             <div className="flex items-center gap-2 text-sky-900 font-medium">
               <Laptop className="w-4 h-4 text-sky-600" />
               <span>
-                Nguồn: <strong className="font-semibold">Camera của thiết bị đang truy cập</strong> · Căn góc khuôn mặt tương tự lúc đăng ký
+                {t('faceTest.deviceCamSourceNotice')}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -666,7 +662,7 @@ export default function FaceRecognitionTestModal({
                     className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium flex items-center gap-1.5 cursor-pointer shadow-2xs"
                   >
                     <VideoOff className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Tắt Camera</span>
+                    <span>{t('faceTest.turnOffCam')}</span>
                   </button>
                   <button
                     type="button"
@@ -679,7 +675,7 @@ export default function FaceRecognitionTestModal({
                     className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 transition-all"
                   >
                     <Camera className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                    <span>{isLoading ? 'Đang nhận diện AI...' : 'Chụp & Nhận diện ngay'}</span>
+                    <span>{isLoading ? t('faceTest.recognizingAi') : t('faceTest.captureAndRecognize')}</span>
                   </button>
                 </>
               ) : (
@@ -689,7 +685,7 @@ export default function FaceRecognitionTestModal({
                   className="px-3 py-1.5 rounded-lg border border-sky-200 bg-white hover:bg-sky-50 text-sky-700 font-medium flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 >
                   <Video className="w-3.5 h-3.5 text-sky-600" />
-                  <span>Bật lại Camera</span>
+                  <span>{t('faceTest.turnOnCamAgain')}</span>
                 </button>
               )}
             </div>
@@ -707,11 +703,11 @@ export default function FaceRecognitionTestModal({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-[11px] text-indigo-300 font-mono mb-1">
-                    <span>CHỌN NGUỒN CAMERA GIÁM SÁT:</span>
+                    <span>{t('faceTest.selectIpCamLabel')}</span>
                     {currentCamera && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-sans">
                         <Radio className="w-2.5 h-2.5 animate-pulse" />
-                        <span>{currentCamera.status === CameraStatus.ONLINE ? 'Trực tuyến' : 'Ngoại tuyến'}</span>
+                        <span>{currentCamera.status === CameraStatus.ONLINE ? t('faceTest.online') : t('faceTest.offline')}</span>
                       </span>
                     )}
                   </div>
@@ -730,12 +726,12 @@ export default function FaceRecognitionTestModal({
                     >
                       {cameraList.length === 0 ? (
                         <option value="" disabled className="bg-slate-900 text-slate-400 py-1">
-                          Chưa có camera khả dụng trong hệ thống
+                          {t('faceTest.noCamerasAvailable')}
                         </option>
                       ) : (
                         cameraList.map((cam) => (
                           <option key={cam.id} value={cam.id} className="bg-slate-900 text-white py-1">
-                            {cam.name} ({cam.id}) — Vị trí: {cam.location}
+                            {cam.name} ({cam.id}) — {t('faceTest.locationLabel')} {cam.location}
                           </option>
                         ))
                       )}
@@ -754,7 +750,7 @@ export default function FaceRecognitionTestModal({
                     setImagePreview(null);
                     setResult(null);
                   }}
-                  title="Tải lại khung hình camera trực tiếp"
+                  title={t('faceTest.reloadLiveFrame')}
                   className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition-colors cursor-pointer"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -767,7 +763,7 @@ export default function FaceRecognitionTestModal({
                   className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  <span>{isLoading ? 'Đang nhận diện AI...' : 'Chụp từ Camera IP & Nhận diện'}</span>
+                  <span>{isLoading ? t('faceTest.recognizingAi') : t('faceTest.captureFromIpCam')}</span>
                 </button>
               </div>
             </div>
@@ -776,15 +772,15 @@ export default function FaceRecognitionTestModal({
             <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-indigo-900/40 text-[11px] text-slate-400">
               <span className="flex items-center gap-1">
                 <MapPin className="w-3 h-3 text-indigo-400" />
-                <span>Vị trí: <strong className="text-slate-200">{currentCamera?.location || 'Chưa thiết lập'}</strong></span>
+                <span>{t('faceTest.locationLabel')} <strong className="text-slate-200">{currentCamera?.location || t('faceTest.notConfigured')}</strong></span>
               </span>
               <span className="flex items-center gap-1 font-mono">
                 <Activity className="w-3 h-3 text-emerald-400" />
-                <span>Tốc độ: <strong className="text-slate-200">{currentCamera?.fps ? `${currentCamera.fps} FPS` : 'Khung hình chuẩn'}</strong></span>
+                <span>{t('faceTest.fpsLabel')} <strong className="text-slate-200">{currentCamera?.fps ? `${currentCamera.fps} FPS` : t('faceTest.standardFps')}</strong></span>
               </span>
               <span className="flex items-center gap-1 font-mono">
                 <Shield className="w-3 h-3 text-sky-400" />
-                <span>Mã thiết bị: <strong className="text-sky-300">{currentCamera?.id || 'Chưa chọn'}</strong></span>
+                <span>{t('faceTest.deviceIdLabel')} <strong className="text-sky-300">{currentCamera?.id || t('faceTest.notSelected')}</strong></span>
               </span>
             </div>
           </div>
@@ -861,8 +857,8 @@ export default function FaceRecognitionTestModal({
                   style={{ pointerEvents: 'none' }}
                 >
                   <Activity className="w-3 h-3 text-sky-400" />
-                  <span className="font-semibold text-slate-200">Camera thiết bị:</span>
-                  <span className="text-sky-400 font-medium">Sẵn sàng nhận diện</span>
+                  <span className="font-semibold text-slate-200">{t('faceTest.deviceCamTitle')}</span>
+                  <span className="text-sky-400 font-medium">{t('faceTest.deviceCamReady')}</span>
                 </div>
 
                 {/* Nút bấm Chụp trên Video - Độc lập ngoài SVG mask, z-30 pointer-events-auto */}
@@ -882,7 +878,7 @@ export default function FaceRecognitionTestModal({
                     style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                   >
                     <Camera className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    <span>{isLoading ? 'Đang nhận diện AI...' : 'Chụp & Nhận diện ngay'}</span>
+                    <span>{isLoading ? t('faceTest.recognizingAi') : t('faceTest.captureAndRecognize')}</span>
                   </button>
                 </div>
               </div>
@@ -892,7 +888,7 @@ export default function FaceRecognitionTestModal({
                 <div className="relative inline-block max-w-full max-h-[320px]">
                   <img
                     src={imagePreview}
-                    alt="Khung hình phân tích"
+                    alt={t('faceTest.analyzedFrameAlt')}
                     className="max-w-full max-h-[320px] object-contain rounded-lg block"
                   />
 
@@ -916,7 +912,7 @@ export default function FaceRecognitionTestModal({
                           result.matched ? 'bg-emerald-600' : 'bg-amber-600'
                         }`}
                       >
-                        {result.matched ? result.fullName : 'Chưa nhận diện'}
+                        {result.matched ? result.fullName : t('faceTest.notRecognized')}
                         {result.similarity ? ` · ${(result.similarity * 100).toFixed(1)}%` : ''}
                         {result.yaw != null ? ` · Yaw ${result.yaw.toFixed(0)}°` : ''}
                       </span>
@@ -933,7 +929,7 @@ export default function FaceRecognitionTestModal({
                       className="px-3 py-1.5 bg-slate-900/85 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md backdrop-blur-xs transition-colors cursor-pointer border border-slate-700"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Chụp lượt khác</span>
+                      <span>{t('faceTest.retake')}</span>
                     </button>
                   ) : activeTab === RecognitionTabMode.IP_CAMERA ? (
                     <button
@@ -946,7 +942,7 @@ export default function FaceRecognitionTestModal({
                       className="px-3 py-1.5 bg-slate-900/85 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md backdrop-blur-xs transition-colors cursor-pointer border border-slate-700"
                     >
                       <Eye className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Quay lại xem trực tiếp</span>
+                      <span>{t('faceTest.backToLive')}</span>
                     </button>
                   ) : null}
                 </div>
@@ -956,13 +952,13 @@ export default function FaceRecognitionTestModal({
               !currentCamera ? (
                 <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2 text-center p-4">
                   <VideoOff className="w-8 h-8 text-slate-500" />
-                  <p className="text-xs text-slate-300 max-w-xs">Chưa có Camera IP nào được chọn hoặc hệ thống đang tải danh mục camera.</p>
+                  <p className="text-xs text-slate-300 max-w-xs">{t('faceTest.noCamSelectedMsg')}</p>
                 </div>
               ) : (
                 <div className="relative w-full aspect-video max-h-[320px] flex items-center justify-center overflow-hidden rounded-xl bg-slate-900">
                   <img
                     src={streamError ? getCameraSnapshotUrl(currentCameraId, ipSnapshotTimestamp) : getCameraLiveStreamUrl(currentCameraId)}
-                    alt={`Khung hình trực tiếp ${currentCamera.name}`}
+                    alt={currentCamera ? `${currentCamera.name}` : 'Camera'}
                     onLoad={() => setIsIpImageLoading(false)}
                     onError={() => {
                       setIsIpImageLoading(false);
@@ -977,7 +973,7 @@ export default function FaceRecognitionTestModal({
                     <div className="flex items-center justify-between text-[11px] font-mono">
                       <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-slate-700 text-white">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                        <span className="font-bold text-emerald-400">TRỰC TIẾP</span>
+                        <span className="font-bold text-emerald-400">{t('faceTest.liveBadge')}</span>
                         <span className="text-slate-400">| {currentCamera.name}</span>
                       </div>
                       <div className="bg-slate-900/80 backdrop-blur-xs px-2 py-1 rounded-lg border border-slate-700 text-slate-300">
@@ -997,7 +993,7 @@ export default function FaceRecognitionTestModal({
                     {/* Footer HUD & Nút Chụp */}
                     <div className="flex items-center justify-between pointer-events-auto">
                       <span className="text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
-                        VỊ TRÍ: {currentCamera.location}
+                        {t('faceTest.locationLabel').toUpperCase()} {currentCamera.location}
                       </span>
                       <button
                         type="button"
@@ -1006,7 +1002,7 @@ export default function FaceRecognitionTestModal({
                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50"
                       >
                         <Camera className="w-4 h-4" />
-                        <span>{isLoading ? 'Đang nhận diện...' : 'Chụp từ Camera IP & Nhận diện'}</span>
+                        <span>{isLoading ? t('faceTest.recognizingAi') : t('faceTest.captureFromIpCam')}</span>
                       </button>
                     </div>
                   </div>
@@ -1021,7 +1017,7 @@ export default function FaceRecognitionTestModal({
                   onClick={startDeviceCamera}
                   className="mt-2 px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer"
                 >
-                  Thử lại
+                  {t('faceTest.tryAgain')}
                 </button>
               </div>
             ) : (
@@ -1031,8 +1027,8 @@ export default function FaceRecognitionTestModal({
                 </div>
                 <p className="text-xs font-medium text-slate-400 max-w-xs">
                   {activeTab === RecognitionTabMode.DEVICE
-                    ? 'Bấm "Bật lại Camera" để sử dụng webcam của thiết bị thử nghiệm nhận diện'
-                    : 'Kéo thả hoặc tải lên ảnh chân dung học sinh để đối soát'}
+                    ? t('faceTest.webcamHint')
+                    : t('faceTest.uploadHint')}
                 </p>
                 {activeTab === RecognitionTabMode.DEVICE && (
                   <button
@@ -1041,7 +1037,7 @@ export default function FaceRecognitionTestModal({
                     className="mt-2 px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer inline-flex items-center gap-1.5"
                   >
                     <Video className="w-3.5 h-3.5" />
-                    <span>Bật Camera thiết bị</span>
+                    <span>{t('faceTest.turnOnCam')}</span>
                   </button>
                 )}
               </div>
@@ -1051,7 +1047,7 @@ export default function FaceRecognitionTestModal({
               <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-2xs flex flex-col items-center justify-center gap-3 z-20">
                 <RefreshCw className="w-8 h-8 text-sky-400 animate-spin" />
                 <span className="text-xs text-sky-200 font-mono">
-                  Đang trích xuất 512-D ArcFace vector & đối soát PGVector...
+                  {t('faceTest.extractingVector')}
                 </span>
               </div>
             )}
@@ -1078,7 +1074,7 @@ export default function FaceRecognitionTestModal({
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="text-sm font-bold">
-                      {result.matched ? 'XÁC THỰC THÀNH CÔNG' : 'KHÔNG KHỚP HỒ SƠ / NGƯỜI LẠ'}
+                      {result.matched ? t('faceTest.authSuccess') : t('faceTest.authFailed')}
                     </h4>
                     <p className="text-xs mt-1 leading-relaxed opacity-90">{result.feedbackMessage}</p>
                   </div>
@@ -1089,19 +1085,19 @@ export default function FaceRecognitionTestModal({
                   <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs space-y-3">
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       <div>
-                        <span className="text-slate-500 block">Họ và tên:</span>
+                        <span className="text-slate-500 block">{t('faceTest.fullNameLabel')}</span>
                         <strong className="text-slate-900 text-sm">{result.fullName}</strong>
                       </div>
                       <div>
-                        <span className="text-slate-500 block">Mã định danh:</span>
+                        <span className="text-slate-500 block">{t('faceTest.identityCodeLabel')}</span>
                         <strong className="text-sky-600 font-mono text-sm">{result.identityCode}</strong>
                       </div>
                       <div>
-                        <span className="text-slate-500 block">Lớp / Phòng ban:</span>
+                        <span className="text-slate-500 block">{t('faceTest.departmentOrClassLabel')}</span>
                         <span className="font-semibold text-slate-800">{result.departmentOrClass}</span>
                       </div>
                       <div>
-                        <span className="text-slate-500 block">Đối tượng:</span>
+                        <span className="text-slate-500 block">{t('faceTest.subjectTypeLabel')}</span>
                         <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-100 text-sky-700">
                           {result.subjectType || SubjectType.STUDENT}
                         </span>
@@ -1111,7 +1107,7 @@ export default function FaceRecognitionTestModal({
                     {/* Thanh độ tương đồng */}
                     <div className="pt-2 border-t border-slate-100">
                       <div className="flex justify-between items-center text-xs mb-1">
-                        <span className="text-slate-500 font-medium">Độ tương đồng Cosine:</span>
+                        <span className="text-slate-500 font-medium">{t('faceTest.cosineSimilarity')}</span>
                         <strong className="text-emerald-600 font-mono">
                           {((result.similarity || 0) * 100).toFixed(1)}%
                         </strong>
@@ -1126,8 +1122,8 @@ export default function FaceRecognitionTestModal({
 
                     {/* Chỉ số phụ */}
                     <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono pt-1">
-                      <span>Độ nét: {((result.qualityScore || 0) * 100).toFixed(0)}% FIQA</span>
-                      <span>Độ trễ AI: {(result.processingTimeMs || 0).toFixed(0)}ms</span>
+                      <span>{t('faceTest.sharpnessFiqa', { score: ((result.qualityScore || 0) * 100).toFixed(0) })}</span>
+                      <span>{t('faceTest.aiLatency', { latency: (result.processingTimeMs || 0).toFixed(0) })}</span>
                     </div>
 
                     {/* Nút hành động Ghi nhận Điểm danh */}
@@ -1145,13 +1141,13 @@ export default function FaceRecognitionTestModal({
                         {attendanceRecorded ? (
                           <>
                             <Check className="w-4 h-4 text-emerald-600" />
-                            <span>Đã ghi nhận điểm danh vào Sổ cái</span>
+                            <span>{t('faceTest.attendanceRecorded')}</span>
                           </>
                         ) : (
                           <>
                             <UserCheck className="w-4 h-4" />
                             <span>
-                              {isSubmittingAttendance ? 'Đang ghi nhận...' : 'Ghi nhận Điểm danh vào Sổ cái'}
+                              {isSubmittingAttendance ? t('faceTest.recordingAttendance') : t('faceTest.recordAttendanceBtn')}
                             </span>
                           </>
                         )}
@@ -1165,13 +1161,10 @@ export default function FaceRecognitionTestModal({
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-2xs space-y-3">
                     <div className="flex items-center gap-2 text-amber-900 text-xs font-bold">
                       <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Đồng bộ hồ sơ từ hình ảnh thực tế</span>
+                      <span>{t('faceTest.syncVectorTitle')}</span>
                     </div>
                     <p className="text-xs text-amber-800 leading-relaxed">
-                      Camera đã bắt được khuôn mặt
-                      {result.qualityScore ? ` — độ nét ${(result.qualityScore * 100).toFixed(0)}% FIQA` : ''}
-                      {result.yaw != null ? ` · Góc quay ${result.yaw.toFixed(1)}°` : ''}.
-                      Bạn có thể nạp ngay vector khuôn mặt vào hồ sơ để nhận diện tức thì trong các lần tới.
+                      {t('faceTest.syncVectorDesc')}
                     </p>
                     {result.topCandidates && result.topCandidates.length > 0 && result.topCandidates[0] && (
                       <div className="pt-1">
@@ -1184,13 +1177,13 @@ export default function FaceRecognitionTestModal({
                           {isAssigning ? (
                             <>
                               <RefreshCw className="w-4 h-4 animate-spin" />
-                              <span>Đang trích xuất & cập nhật PGVector...</span>
+                              <span>{t('faceTest.updatingPgVector')}</span>
                             </>
                           ) : (
                             <>
                               <UserCheck className="w-4 h-4" />
                               <span>
-                                Gán & Cập nhật cho {result.topCandidates[0].fullName} ({result.topCandidates[0].identityCode})
+                                {t('faceTest.assignToCandidate', { name: result.topCandidates[0].fullName, code: result.topCandidates[0].identityCode })}
                               </span>
                             </>
                           )}
@@ -1205,7 +1198,7 @@ export default function FaceRecognitionTestModal({
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
                     <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                       <Layers className="w-3.5 h-3.5 text-slate-500" />
-                      Top ứng viên đối soát trong CSDL ({result.topCandidates.length})
+                      {t('faceTest.topCandidatesTitle', { count: result.topCandidates.length })}
                     </span>
                     <div className="space-y-1.5">
                       {result.topCandidates.map((cand, idx) => (
@@ -1236,9 +1229,9 @@ export default function FaceRecognitionTestModal({
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center space-y-4">
                 <Shield className="w-10 h-10 mx-auto text-sky-500" />
                 <div>
-                  <h5 className="text-sm font-bold text-slate-800">Sẵn sàng thử nghiệm nhận diện</h5>
+                  <h5 className="text-sm font-bold text-slate-800">{t('faceTest.readyToTestTitle')}</h5>
                   <p className="text-xs text-slate-500 leading-relaxed mt-1 max-w-sm mx-auto">
-                    Hệ thống trích xuất vector UniFace ArcFace 512-D và đối soát PGVector với tốc độ xử lý dưới 50ms.
+                    {t('faceTest.readyToTestDesc')}
                   </p>
                 </div>
                 {activeTab === RecognitionTabMode.DEVICE && isDeviceCamActive && (
@@ -1253,7 +1246,7 @@ export default function FaceRecognitionTestModal({
                     className="w-full py-3.5 px-4 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 active:scale-[0.98] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-sky-600/25 cursor-pointer transition-all disabled:opacity-50"
                   >
                     <Camera className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    <span>{isLoading ? 'Đang nhận diện AI...' : 'Chụp hình & Nhận diện ngay'}</span>
+                    <span>{isLoading ? t('faceTest.recognizingAi') : t('faceTest.captureAndRecognize')}</span>
                   </button>
                 )}
                 {activeTab === RecognitionTabMode.IP_CAMERA && (
@@ -1268,7 +1261,7 @@ export default function FaceRecognitionTestModal({
                     className="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 active:scale-[0.98] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 cursor-pointer transition-all disabled:opacity-50"
                   >
                     <Camera className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    <span>{isLoading ? 'Đang nhận diện AI...' : 'Chụp từ Camera IP & Nhận diện'}</span>
+                    <span>{isLoading ? t('faceTest.recognizingAi') : t('faceTest.captureFromIpCam')}</span>
                   </button>
                 )}
               </div>

@@ -44,7 +44,7 @@ export default function GuardDeskPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal Đăng ký khách mới
+  // Modal Đăng ký khách mới (Zero fake defaults)
   const [isVisitorModalOpen, setIsVisitorModalOpen] = useState<boolean>(false);
   const [visitorForm, setVisitorForm] = useState({
     fullName: '',
@@ -53,12 +53,12 @@ export default function GuardDeskPage() {
     targetIdentityCode: '',
     validFrom: new Date().toISOString(),
     validTo: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
-    approvedBy: 'Bảo vệ ca sáng',
+    approvedBy: '',
   });
 
-  // Modal Mở Barie Khẩn Cấp
+  // Modal Mở Barie Khẩn Cấp (Zero fake defaults)
   const [isGateModalOpen, setIsGateModalOpen] = useState<boolean>(false);
-  const [gateReason, setGateReason] = useState<string>('Xe cứu thương / Khẩn cấp y tế');
+  const [gateReason, setGateReason] = useState<string>('');
 
   // ConfirmDialog Thu hồi quyền
   const [revokeDialog, setRevokeDialog] = useState<{
@@ -97,7 +97,10 @@ export default function GuardDeskPage() {
     e.preventDefault();
     try {
       await postApi('/visitors', visitorForm);
-      showSuccess('Tiếp nhận khách vào cổng', `Đã cấp quyền ra vào cho ${visitorForm.fullName} thành công`);
+      showSuccess(
+        t('guardDesk.toastRegisterSuccessTitle'),
+        t('guardDesk.toastRegisterSuccessMsg').replace('{name}', visitorForm.fullName)
+      );
       setIsVisitorModalOpen(false);
       setVisitorForm({
         fullName: '',
@@ -106,27 +109,34 @@ export default function GuardDeskPage() {
         targetIdentityCode: '',
         validFrom: new Date().toISOString(),
         validTo: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
-        approvedBy: 'Bảo vệ ca sáng',
+        approvedBy: '',
       });
       loadGuardData();
     } catch (err: any) {
-      showError('Đăng ký khách thất bại', err.message);
+      showError(t('guardDesk.toastRegisterError'), err.message);
     }
   };
 
   const handleConfirmRevoke = async () => {
     try {
       await postApi(`/visitors/${revokeDialog.visitorCode}/revoke`);
-      showSuccess('Thu hồi quyền vào cổng', `Đã thu hồi quyền ra vào của mã ${revokeDialog.visitorCode}`);
+      showSuccess(
+        t('guardDesk.toastRevokeSuccessTitle'),
+        t('guardDesk.toastRevokeSuccessMsg').replace('{code}', revokeDialog.visitorCode)
+      );
       setRevokeDialog({ isOpen: false, visitorCode: '', visitorName: '' });
       loadGuardData();
     } catch (err: any) {
-      showError('Thu hồi thất bại', err.message);
+      showError(t('guardDesk.toastRevokeError'), err.message);
     }
   };
 
   const handleManualOpenGate = () => {
-    showWarning('Mở Barie Thủ Công', `Đã kích hoạt mở barie cổng chính. Lý do: ${gateReason} (Đã ghi nhật ký kiểm toán)`);
+    const reasonText = gateReason || t('guardDesk.reasonAmbulance');
+    showWarning(
+      t('guardDesk.toastManualOpenTitle'),
+      t('guardDesk.toastManualOpenMsg').replace('{reason}', reasonText)
+    );
     setIsGateModalOpen(false);
   };
 
@@ -142,25 +152,28 @@ export default function GuardDeskPage() {
           <button
             onClick={loadGuardData}
             disabled={isLoading}
-            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs transition-colors"
+            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-slate-500' : 'text-slate-500'}`} />
             {t('common.refresh')}
           </button>
           <button
             type="button"
-            onClick={() => setIsGateModalOpen(true)}
-            className="flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 shadow-xs transition-colors"
+            onClick={() => {
+              setGateReason('');
+              setIsGateModalOpen(true);
+            }}
+            className="flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 shadow-xs transition-colors cursor-pointer"
           >
             <DoorOpen className="w-4 h-4 text-amber-700" />
-            <span>Mở Cổng Cưỡng Bức</span>
+            <span>{t('guardDesk.forcedOpenGate')}</span>
           </button>
           <button
             onClick={() => setIsVisitorModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs transition-colors shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Đăng Ký Khách Mới</span>
+            <span>{t('guardDesk.registerVisitorBtn')}</span>
           </button>
         </div>
       </div>
@@ -230,7 +243,7 @@ export default function GuardDeskPage() {
                               visitorName: v.fullName,
                             })
                           }
-                          className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-[11px] font-medium transition-colors"
+                          className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-[11px] font-medium transition-colors cursor-pointer"
                         >
                           {t('guardDesk.revoke')}
                         </button>
@@ -287,56 +300,56 @@ export default function GuardDeskPage() {
       <Modal
         isOpen={isVisitorModalOpen}
         onClose={() => setIsVisitorModalOpen(false)}
-        title="Đăng Ký Khách / Phụ Huynh Đến Thăm"
+        title={t('guardDesk.registerModalTitle')}
         maxWidth="md"
       >
         <form onSubmit={handleRegisterVisitor} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Họ và tên khách / phụ huynh <span className="text-rose-500">*</span>
+              {t('guardDesk.fullNameLabel')} <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={visitorForm.fullName}
               onChange={(e) => setVisitorForm({ ...visitorForm, fullName: e.target.value })}
-              placeholder="ví dụ: Bác Trần Văn Quý"
+              placeholder={t('guardDesk.fullNamePlaceholder')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Số điện thoại</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('guardDesk.phoneLabel')}</label>
               <input
                 type="text"
                 value={visitorForm.phoneNumber}
                 onChange={(e) => setVisitorForm({ ...visitorForm, phoneNumber: e.target.value })}
-                placeholder="0987654321"
+                placeholder={t('guardDesk.phonePlaceholder')}
                 className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-sky-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Phân loại khách</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('guardDesk.visitorTypeLabel')}</label>
               <select
                 value={visitorForm.visitorType}
                 onChange={(e) => setVisitorForm({ ...visitorForm, visitorType: e.target.value as VisitorType })}
-                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 cursor-pointer"
               >
-                <option value={VisitorType.PARENT}>Phụ huynh</option>
-                <option value={VisitorType.GUEST}>Khách đến thăm</option>
-                <option value={VisitorType.CONTRACTOR}>Nhà thầu / Đối tác</option>
+                <option value={VisitorType.PARENT}>{t('guardDesk.typeParent')}</option>
+                <option value={VisitorType.GUEST}>{t('guardDesk.typeGuest')}</option>
+                <option value={VisitorType.CONTRACTOR}>{t('guardDesk.typeContractor')}</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Mã học sinh đón / Người cần gặp</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('guardDesk.targetPersonLabel')}</label>
             <input
               type="text"
               value={visitorForm.targetIdentityCode}
               onChange={(e) => setVisitorForm({ ...visitorForm, targetIdentityCode: e.target.value })}
-              placeholder="ví dụ: HS100293 hoặc Thầy Hiệu Trưởng"
+              placeholder={t('guardDesk.targetPersonPlaceholder')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             />
           </div>
@@ -345,15 +358,15 @@ export default function GuardDeskPage() {
             <button
               type="button"
               onClick={() => setIsVisitorModalOpen(false)}
-              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium"
+              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium cursor-pointer"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-sm"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-sm cursor-pointer"
             >
-              Cấp Thẻ Vào Cổng
+              {t('guardDesk.grantAccessBtn')}
             </button>
           </div>
         </form>
@@ -363,40 +376,42 @@ export default function GuardDeskPage() {
       <Modal
         isOpen={isGateModalOpen}
         onClose={() => setIsGateModalOpen(false)}
-        title="Kích Hoạt Mở Barie Cổng Thủ Công"
+        title={t('guardDesk.manualGateTitle')}
         maxWidth="sm"
       >
         <div className="space-y-4">
           <p className="text-xs text-slate-600">
-            Hành động mở cổng cưỡng bức sẽ gửi tín hiệu mở relay tới cổng chính và ghi lại vào Nhật ký Kiểm toán bất biến (Audit Log).
+            {t('guardDesk.manualGateNotice')}
           </p>
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Lý do mở cổng:</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('guardDesk.openReasonLabel')}</label>
             <select
               value={gateReason}
               onChange={(e) => setGateReason(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 cursor-pointer"
             >
-              <option value="Xe cứu thương / Khẩn cấp y tế">Xe cứu thương / Khẩn cấp y tế</option>
-              <option value="Xe cứu hỏa PCCC">Xe cứu hỏa PCCC</option>
-              <option value="Đoàn kiểm tra Sở GD&ĐT">Đoàn kiểm tra Sở GD&ĐT</option>
-              <option value="Xe chở trang thiết bị trường học">Xe chở trang thiết bị trường học</option>
+              <option value="">{t('guardDesk.reasonAmbulance')}</option>
+              <option value={t('guardDesk.reasonAmbulance')}>{t('guardDesk.reasonAmbulance')}</option>
+              <option value={t('guardDesk.reasonFireTruck')}>{t('guardDesk.reasonFireTruck')}</option>
+              <option value={t('guardDesk.reasonInspection')}>{t('guardDesk.reasonInspection')}</option>
+              <option value={t('guardDesk.reasonDelivery')}>{t('guardDesk.reasonDelivery')}</option>
+              <option value={t('guardDesk.reasonCustom')}>{t('guardDesk.reasonCustom')}</option>
             </select>
           </div>
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setIsGateModalOpen(false)}
-              className="px-4 py-2 rounded-xl bg-white text-slate-700 border border-slate-200 text-xs font-medium"
+              className="px-4 py-2 rounded-xl bg-white text-slate-700 border border-slate-200 text-xs font-medium cursor-pointer"
             >
-              Hủy bỏ
+              {t('common.cancel')}
             </button>
             <button
               type="button"
               onClick={handleManualOpenGate}
-              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-sm"
+              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-sm cursor-pointer"
             >
-              Xác Nhận Mở Cổng
+              {t('guardDesk.confirmOpenBtn')}
             </button>
           </div>
         </div>
@@ -407,8 +422,10 @@ export default function GuardDeskPage() {
         isOpen={revokeDialog.isOpen}
         onClose={() => setRevokeDialog({ isOpen: false, visitorCode: '', visitorName: '' })}
         onConfirm={handleConfirmRevoke}
-        title="Thu Hồi Quyền Vào Cổng"
-        message={`Bạn có chắc chắn muốn thu hồi quyền ra vào của khách "${revokeDialog.visitorName}" (Mã: ${revokeDialog.visitorCode})?`}
+        title={t('guardDesk.revokeVisitorTitle')}
+        message={t('guardDesk.revokeVisitorConfirm')
+          .replace('{name}', revokeDialog.visitorName)
+          .replace('{code}', revokeDialog.visitorCode)}
         isDangerous={true}
       />
     </div>

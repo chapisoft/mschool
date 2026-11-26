@@ -49,18 +49,18 @@ export default function ClassesPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State Modal Thêm / Sửa lớp
+  // State Modal Thêm / Sửa lớp (Không gán giá trị mặc định giả lập)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingClass, setEditingClass] = useState<ClassroomItem | null>(null);
   const [classForm, setClassForm] = useState({
     code: '',
     name: '',
     gradeLevel: 10,
-    room: 'P.101',
-    building: 'Nhà A',
+    room: '',
+    building: '',
     floor: 1,
     homeroomTeacher: '',
-    totalStudents: 45,
+    totalStudents: 0,
   });
 
   // State Modal Chi tiết học sinh của lớp
@@ -107,11 +107,11 @@ export default function ClassesPage() {
       code: '',
       name: '',
       gradeLevel: 10,
-      room: 'P.101',
-      building: 'Nhà A',
+      room: '',
+      building: '',
       floor: 1,
       homeroomTeacher: '',
-      totalStudents: 45,
+      totalStudents: 0,
     });
     setIsModalOpen(true);
   };
@@ -137,18 +137,24 @@ export default function ClassesPage() {
     try {
       if (editingClass) {
         await putApi(`/classrooms/${editingClass.id}`, classForm);
-        showSuccess('Cập nhật lớp học', `Đã lưu thay đổi cho lớp ${classForm.name}`);
+        showSuccess(
+          t('classes.updateTitle'),
+          t('classes.updateSuccessMsg').replace('{name}', classForm.name)
+        );
       } else {
         await postApi('/classrooms', {
           ...classForm,
           id: classForm.code,
         });
-        showSuccess('Thêm lớp học mới', `Đã tạo lớp ${classForm.name} thành công`);
+        showSuccess(
+          t('classes.createTitle'),
+          t('classes.createSuccessMsg').replace('{name}', classForm.name)
+        );
       }
       setIsModalOpen(false);
       loadClasses();
     } catch (err: any) {
-      showError('Thao tác thất bại', err.message);
+      showError(t('common.operationFailed'), err.message);
     }
   };
 
@@ -156,15 +162,20 @@ export default function ClassesPage() {
     e.stopPropagation();
     setConfirmDialog({
       isOpen: true,
-      title: 'Xóa Lớp Học',
-      message: `Bạn có chắc chắn muốn xóa lớp học "${cls.name}" (${cls.code}) khỏi hệ thống?`,
+      title: t('classes.deleteConfirmTitle'),
+      message: t('classes.deleteConfirmMsg')
+        .replace('{name}', cls.name)
+        .replace('{code}', cls.code),
       action: async () => {
         try {
           await deleteApi(`/classrooms/${cls.id}`);
-          showSuccess('Xóa lớp học', `Đã xóa lớp ${cls.name}`);
+          showSuccess(
+            t('classes.deleteConfirmTitle'),
+            t('classes.deleteSuccessMsg').replace('{name}', cls.name)
+          );
           loadClasses();
         } catch (err: any) {
-          showError('Lỗi xóa lớp học', err.message);
+          showError(t('common.operationFailed'), err.message);
         } finally {
           setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
         }
@@ -180,7 +191,7 @@ export default function ClassesPage() {
       const data = await fetchApi<StudentInClass[]>(`/classrooms/${cls.id}/students`);
       setStudentsInClass(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      console.warn('Lỗi tải danh sách học sinh:', err.message);
+      console.warn('Failed to load students in classroom:', err.message);
       setStudentsInClass([]);
     } finally {
       setIsLoadingStudents(false);
@@ -198,14 +209,14 @@ export default function ClassesPage() {
           <button
             onClick={loadClasses}
             disabled={isLoading}
-            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs transition-colors"
+            className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             {t('common.refresh')}
           </button>
           <button
             onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-sm transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-sm transition-colors shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>{t('classes.addClass')}</span>
@@ -222,19 +233,19 @@ export default function ClassesPage() {
 
       {/* Lọc theo khối lớp */}
       <div className="flex items-center gap-3 bg-white border border-slate-200 p-4 rounded-2xl shadow-xs">
-        <label className="text-xs font-semibold text-slate-600">Lọc theo khối lớp:</label>
+        <label className="text-xs font-semibold text-slate-600">{t('classes.filterGrade')}</label>
         <div className="flex gap-2">
           {['', '10', '11', '12'].map((grade) => (
             <button
               key={grade}
               onClick={() => setSelectedGrade(grade)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 selectedGrade === grade
                   ? 'bg-sky-600 text-white shadow-xs font-semibold'
                   : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
-              {grade ? `Khối ${grade}` : 'Tất cả khối'}
+              {grade ? t('classes.gradeLabel').replace('{grade}', grade) : t('classes.gradeAll')}
             </button>
           ))}
         </div>
@@ -251,43 +262,46 @@ export default function ClassesPage() {
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-bold text-sm border border-sky-200">
+                  <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-bold text-sm border border-sky-200 font-mono">
                     {cls.code}
                   </span>
                   <span className="text-xs text-slate-500">
-                    {t('classes.room')} {cls.room} ({cls.building || 'Nhà A'})
+                    {cls.room
+                      ? `${t('classes.room')} ${cls.room} ${cls.building ? `(${cls.building})` : ''}`
+                      : t('classes.noRoom')}
                   </span>
                 </div>
                 <h3 className="font-bold text-slate-900 text-base mb-1">{cls.name}</h3>
                 <p className="text-xs text-slate-500 mb-3">
                   {t('classes.homeroomTeacher')}:{' '}
-                  <span className="text-slate-800 font-medium">{cls.homeroomTeacher || 'Chưa phân công'}</span>
+                  <span className="text-slate-800 font-medium">{cls.homeroomTeacher || t('classes.unassigned')}</span>
                 </p>
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                 <span className="flex items-center gap-1 font-mono font-medium">
-                  <Users className="w-3.5 h-3.5 text-slate-400" /> {cls.totalStudents} HS
+                  <Users className="w-3.5 h-3.5 text-slate-400" />
+                  {cls.totalStudents} {t('classes.quotaStudents').replace('{count}', '')}
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => handleOpenDetails(cls)}
-                    className="p-1.5 text-sky-600 hover:text-sky-700 rounded-lg hover:bg-sky-50 transition-colors"
-                    title="Xem chi tiết học sinh"
+                    className="p-1.5 text-sky-600 hover:text-sky-700 rounded-lg hover:bg-sky-50 transition-colors cursor-pointer"
+                    title={t('classes.viewStudentsTooltip')}
                   >
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
                     onClick={(e) => handleOpenEdit(cls, e)}
-                    className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors"
-                    title="Chỉnh sửa thông tin"
+                    className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                    title={t('classes.editClassTooltip')}
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={(e) => handleDeleteClass(cls, e)}
-                    className="p-1.5 text-rose-600 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors"
-                    title="Xóa lớp học"
+                    className="p-1.5 text-rose-600 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                    title={t('classes.deleteClassTooltip')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -304,14 +318,14 @@ export default function ClassesPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingClass ? 'Cập Nhật Lớp Học' : 'Thêm Mới Lớp Học'}
+        title={editingClass ? t('classes.editModalTitle') : t('classes.createModalTitle')}
         maxWidth="md"
       >
         <form onSubmit={handleSubmitClass} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Mã lớp <span className="text-rose-500">*</span>
+                {t('classes.classCode')} <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -319,80 +333,81 @@ export default function ClassesPage() {
                 disabled={!!editingClass}
                 value={classForm.code}
                 onChange={(e) => setClassForm({ ...classForm, code: e.target.value.toUpperCase() })}
-                placeholder="10A1"
+                placeholder={t('classes.placeholderCode')}
                 className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 uppercase font-mono focus:outline-none focus:border-sky-500 disabled:opacity-50"
               />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Khối lớp <span className="text-rose-500">*</span>
+                {t('classes.grade')} <span className="text-rose-500">*</span>
               </label>
               <select
                 value={classForm.gradeLevel}
                 onChange={(e) => setClassForm({ ...classForm, gradeLevel: parseInt(e.target.value) })}
-                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500 cursor-pointer"
               >
-                <option value={10}>Khối 10</option>
-                <option value={11}>Khối 11</option>
-                <option value={12}>Khối 12</option>
+                <option value={10}>{t('classes.grade10')}</option>
+                <option value={11}>{t('classes.grade11')}</option>
+                <option value={12}>{t('classes.grade12')}</option>
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Tên lớp học <span className="text-rose-500">*</span>
+              {t('classes.className')} <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={classForm.name}
               onChange={(e) => setClassForm({ ...classForm, name: e.target.value })}
-              placeholder="Lớp 10 Chuyên Toán"
+              placeholder={t('classes.placeholderName')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Giáo viên chủ nhiệm</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('classes.teacherLabel')}</label>
             <input
               type="text"
               value={classForm.homeroomTeacher}
               onChange={(e) => setClassForm({ ...classForm, homeroomTeacher: e.target.value })}
-              placeholder="Thầy Nguyễn Hoàng Nam"
+              placeholder={t('classes.placeholderTeacher')}
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Phòng học</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('classes.roomLabel')}</label>
               <input
                 type="text"
                 value={classForm.room}
                 onChange={(e) => setClassForm({ ...classForm, room: e.target.value })}
-                placeholder="P.101"
+                placeholder={t('classes.placeholderRoom')}
                 className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Tòa nhà</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('classes.buildingLabel')}</label>
               <input
                 type="text"
                 value={classForm.building}
                 onChange={(e) => setClassForm({ ...classForm, building: e.target.value })}
-                placeholder="Nhà A"
+                placeholder={t('classes.placeholderBuilding')}
                 className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Sĩ số</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('classes.totalStudentsLabel')}</label>
               <input
                 type="number"
-                min="1"
-                max="60"
-                value={classForm.totalStudents}
+                min="0"
+                max="100"
+                value={classForm.totalStudents || ''}
                 onChange={(e) => setClassForm({ ...classForm, totalStudents: parseInt(e.target.value) || 0 })}
+                placeholder={t('classes.placeholderTotalStudents')}
                 className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-sky-500"
               />
             </div>
@@ -402,15 +417,15 @@ export default function ClassesPage() {
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200"
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200 cursor-pointer"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-xs"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium shadow-xs cursor-pointer"
             >
-              {editingClass ? 'Lưu thay đổi' : 'Thêm Lớp Học'}
+              {editingClass ? t('classes.saveChanges') : t('classes.addClassBtn')}
             </button>
           </div>
         </form>
@@ -420,42 +435,53 @@ export default function ClassesPage() {
       <Modal
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
-        title={`Chi Tiết Lớp Học - ${detailClass?.name || ''} (${detailClass?.code || ''})`}
+        title={t('classes.classDetailTitle')
+          .replace('{name}', detailClass?.name || '')
+          .replace('{code}', detailClass?.code || '')}
         maxWidth="2xl"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs">
             <div>
-              <span className="text-slate-500">Giáo viên chủ nhiệm: </span>
-              <span className="font-bold text-slate-900 block mt-0.5">{detailClass?.homeroomTeacher || '--'}</span>
+              <span className="text-slate-500">{t('classes.homeroomTeacherLabel')}</span>
+              <span className="font-bold text-slate-900 block mt-0.5">{detailClass?.homeroomTeacher || t('classes.unassigned')}</span>
             </div>
             <div>
-              <span className="text-slate-500">Phòng & Vị trí: </span>
-              <span className="font-bold text-slate-900 block mt-0.5">Phòng {detailClass?.room} ({detailClass?.building}, Tầng {detailClass?.floor})</span>
+              <span className="text-slate-500">{t('classes.roomAndBuilding')}</span>
+              <span className="font-bold text-slate-900 block mt-0.5">
+                {detailClass?.room
+                  ? t('classes.roomAndBuildingValue')
+                      .replace('{room}', detailClass.room)
+                      .replace('{building}', detailClass.building || t('classes.noBuilding'))
+                      .replace('{floor}', detailClass.floor?.toString() || '1')
+                  : t('classes.noRoom')}
+              </span>
             </div>
             <div>
-              <span className="text-slate-500">Sĩ số định biên: </span>
-              <span className="font-bold text-emerald-600 block mt-0.5">{detailClass?.totalStudents} Học sinh</span>
+              <span className="text-slate-500">{t('classes.quotaLabel')}</span>
+              <span className="font-bold text-emerald-600 block mt-0.5">
+                {t('classes.quotaStudents').replace('{count}', (detailClass?.totalStudents ?? 0).toString())}
+              </span>
             </div>
           </div>
 
           <div className="space-y-2">
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
               <GraduationCap className="w-4 h-4 text-sky-600" />
-              Danh Sách Học Sinh Có Hồ Sơ Sinh Trắc
+              {t('classes.biometricStudentsList')}
             </h4>
 
             {isLoadingStudents ? (
-              <div className="py-8 text-center text-slate-500 text-xs font-medium">Đang tải danh sách học sinh...</div>
+              <div className="py-8 text-center text-slate-500 text-xs font-medium">{t('classes.loadingStudents')}</div>
             ) : studentsInClass.length > 0 ? (
               <div className="border border-slate-200 rounded-xl overflow-hidden max-h-[280px] overflow-y-auto">
                 <table className="w-full text-left text-xs text-slate-700">
                   <thead className="bg-slate-50 sticky top-0 uppercase text-slate-500 border-b border-slate-200 font-semibold">
                     <tr>
-                      <th className="py-2.5 px-3">Mã định danh</th>
-                      <th className="py-2.5 px-3">Họ và tên</th>
-                      <th className="py-2.5 px-3">Chất lượng AI</th>
-                      <th className="py-2.5 px-3 text-right">Trạng thái</th>
+                      <th className="py-2.5 px-3">{t('classes.colIdentity')}</th>
+                      <th className="py-2.5 px-3">{t('classes.colFullName')}</th>
+                      <th className="py-2.5 px-3">{t('classes.colAiQuality')}</th>
+                      <th className="py-2.5 px-3 text-right">{t('classes.colStatus')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -464,11 +490,11 @@ export default function ClassesPage() {
                         <td className="py-2.5 px-3 font-mono text-sky-600 font-bold">{st.identityCode}</td>
                         <td className="py-2.5 px-3 text-slate-900 font-medium">{st.fullName}</td>
                         <td className="py-2.5 px-3 font-mono text-emerald-600 font-bold">
-                          {Math.round((st.qualityScore || 0.9) * 100)}%
+                          {st.qualityScore != null ? Math.round(st.qualityScore * 100) : 0}%
                         </td>
                         <td className="py-2.5 px-3 text-right">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            HOẠT ĐỘNG
+                            {t('classes.statusActive')}
                           </span>
                         </td>
                       </tr>
@@ -478,7 +504,7 @@ export default function ClassesPage() {
               </div>
             ) : (
               <div className="py-8 text-center text-slate-500 text-xs bg-slate-50 rounded-xl border border-slate-200">
-                Chưa có dữ liệu khuôn mặt đăng ký cho lớp này
+                {t('classes.noBiometrics')}
               </div>
             )}
           </div>
@@ -486,9 +512,9 @@ export default function ClassesPage() {
           <div className="flex justify-end pt-3 border-t border-slate-200">
             <button
               onClick={() => setDetailModalOpen(false)}
-              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200"
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium border border-slate-200 cursor-pointer"
             >
-              Đóng
+              {t('common.close')}
             </button>
           </div>
         </div>

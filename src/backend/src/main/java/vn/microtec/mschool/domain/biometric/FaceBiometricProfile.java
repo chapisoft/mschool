@@ -36,6 +36,9 @@ public class FaceBiometricProfile {
     @Column(name = "quality_score", nullable = false)
     private Double qualityScore;
 
+    @Column(name = "laplacian_score")
+    private Double laplacianScore;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 
@@ -47,6 +50,15 @@ public class FaceBiometricProfile {
 
     @Column(name = "photo_right", columnDefinition = "TEXT")
     private String photoRight;
+
+    @Column(name = "photo_pitch", columnDefinition = "TEXT")
+    private String photoPitch;
+
+    @Column(name = "photo_camera_native", columnDefinition = "TEXT")
+    private String photoCameraNative;
+
+    @Column(name = "aligned_face_straight", columnDefinition = "TEXT")
+    private String alignedFaceStraight;
 
     @Builder.Default
     @Column(name = "is_deleted", nullable = false)

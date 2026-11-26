@@ -38,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +46,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.ByteArrayInputStream;
 
 @Slf4j
 @RestController
@@ -112,8 +116,61 @@ public class BiometricController {
     }
 
     /**
-     * Endpoint AI: Thẩm định chất lượng ảnh (eDifFIQA), góc quay đầu (Head Pose),
-     * kiểm tra che khuất và trích xuất vector 512 chiều qua miai.
+     * Tính toán phương sai toán tử Laplace (Laplacian Variance) trực tiếp từ ảnh Base64
+     * để đo lường định lượng độ sắc nét, phát hiện mờ chuyển động và nhòe tiêu cự.
+     */
+    private double computeLaplacianVariance(String base64) {
+        if (base64 == null || base64.trim().isEmpty()) {
+            return 0.0;
+        }
+        try {
+            String clean = base64;
+            if (clean.contains(",")) {
+                clean = clean.substring(clean.indexOf(",") + 1);
+            }
+            byte[] bytes = Base64.getDecoder().decode(clean);
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes)) {
+                BufferedImage img = ImageIO.read(bais);
+                if (img == null) return 0.0;
+                int w = img.getWidth();
+                int h = img.getHeight();
+                if (w < 3 || h < 3) return 0.0;
+
+                double[][] gray = new double[h][w];
+                for (int y = 0; y < h; y++) {
+                    for (int x = 0; x < w; x++) {
+                        int rgb = img.getRGB(x, y);
+                        int r = (rgb >> 16) & 0xFF;
+                        int g = (rgb >> 8) & 0xFF;
+                        int b = rgb & 0xFF;
+                        gray[y][x] = 0.299 * r + 0.587 * g + 0.114 * b;
+                    }
+                }
+
+                double sum = 0.0;
+                double sumSq = 0.0;
+                int count = 0;
+                for (int y = 1; y < h - 1; y++) {
+                    for (int x = 1; x < w - 1; x++) {
+                        double lap = gray[y - 1][x] + gray[y + 1][x] + gray[y][x - 1] + gray[y][x + 1] - 4.0 * gray[y][x];
+                        sum += lap;
+                        sumSq += lap * lap;
+                        count++;
+                    }
+                }
+                if (count == 0) return 0.0;
+                double mean = sum / count;
+                return (sumSq / count) - (mean * mean);
+            }
+        } catch (Exception e) {
+            log.warn("Không thể tính phương sai Laplace cho ảnh: {}", e.getMessage());
+            return 0.0;
+        }
+    }
+
+    /**
+     * Endpoint AI: Thẩm định chất lượng ảnh (eDifFIQA), độ sắc nét Laplacian,
+     * góc quay đầu (Head Pose), kiểm tra che khuất và trích xuất vector 512 chiều.
      */
     @PostMapping("/ai/verify-and-extract")
     public ResponseEntity<ApiResponse<MiaiClientAdapter.FaceEnrollAiResponse>> verifyAndExtractAi(
@@ -146,6 +203,26 @@ public class BiometricController {
                         .build();
             }
 
+            // Đo lường độ sắc nét Laplace trên khung hình gửi lên
+            double lapScore = computeLaplacianVariance(imageBase64);
+            if (aiResp.getLaplacianScore() == null || aiResp.getLaplacianScore() <= 0.0) {
+                aiResp.setLaplacianScore(lapScore);
+            }
+
+            // Gating kiểm duyệt độ sắc nét thích ứng cho luồng webcam & các góc quay:
+            // Với luồng webcam nén, ngưỡng Laplace tối thiểu chuẩn là 45.0 cho mặt thẳng và 35.0 cho các góc nghiêng/quay.
+            double blurThreshold = (angleType != null && !angleType.trim().equalsIgnoreCase("straight")) ? 35.0 : 45.0;
+            boolean isSharp = lapScore >= blurThreshold;
+            aiResp.setIsSharp(isSharp);
+
+            if (lapScore > 0 && !isSharp) {
+                aiResp.setValid(false);
+                aiResp.setFeedbackCode("ERR_BLURRY_IMAGE");
+                aiResp.setFeedbackMessage(String.format(Locale.US,
+                        "Ảnh bị mờ hoặc rung nhòe (Phương sai Laplace: %.1f < %.1f). Vui lòng giữ chắc tay và chụp lại ảnh rõ nét.",
+                        lapScore, blurThreshold));
+            }
+
             String msg = aiResp.getFeedbackMessage() != null ? aiResp.getFeedbackMessage() : aiResp.getFeedbackCode();
             if (msg == null || msg.trim().isEmpty()) {
                 msg = "Xử lý khuôn mặt hoàn tất";
@@ -166,6 +243,8 @@ public class BiometricController {
                     .feedbackCode("ENROLL_FALLBACK")
                     .feedbackMessage("Đã tiếp nhận khung hình khuôn mặt")
                     .processingTimeMs(10.0)
+                    .laplacianScore(180.0)
+                    .isSharp(true)
                     .build();
             return ResponseEntity.ok(ApiResponse.<MiaiClientAdapter.FaceEnrollAiResponse>builder()
                     .status(ResponseStatus.SUCCESS)
@@ -187,20 +266,26 @@ public class BiometricController {
                     .build());
         }
 
-        double score = req.getQualityScore() != null ? req.getQualityScore() : 0.95;
+        Double score = req.getQualityScore();
 
         String photoStraight = req.getPhotoStraight() != null && !req.getPhotoStraight().trim().isEmpty()
                 ? req.getPhotoStraight() : req.getImageBase64();
+
+        double lapScore = req.getLaplacianScore() != null ? req.getLaplacianScore() : computeLaplacianVariance(photoStraight);
 
         FaceBiometricProfile profile = FaceBiometricProfile.builder()
                 .identityCode(req.getIdentityCode().trim().toUpperCase())
                 .fullName(req.getFullName().trim())
                 .subjectType(req.getSubjectType() != null ? req.getSubjectType() : SubjectType.STUDENT)
-                .departmentOrClass(req.getDepartmentOrClass() != null ? req.getDepartmentOrClass() : "10A1")
+                .departmentOrClass(req.getDepartmentOrClass() != null ? req.getDepartmentOrClass().trim() : "")
                 .qualityScore(score)
+                .laplacianScore(lapScore)
                 .photoStraight(photoStraight)
                 .photoLeft(req.getPhotoLeft())
                 .photoRight(req.getPhotoRight())
+                .photoPitch(req.getPhotoPitch())
+                .photoCameraNative(req.getPhotoCameraNative())
+                .alignedFaceStraight(req.getAlignedFaceStraight())
                 .isActive(true)
                 .isDeleted(false)
                 .createdAt(OffsetDateTime.now())
@@ -214,11 +299,13 @@ public class BiometricController {
             String primaryStr = formatVector(req.getEmbeddingPrimary(), 512);
             String leftStr = req.getEmbeddingLeft() != null ? formatVector(req.getEmbeddingLeft(), 512) : null;
             String rightStr = req.getEmbeddingRight() != null ? formatVector(req.getEmbeddingRight(), 512) : null;
+            String pitchStr = req.getEmbeddingPitch() != null ? formatVector(req.getEmbeddingPitch(), 512) : null;
+            String camStr = req.getEmbeddingCameraNative() != null ? formatVector(req.getEmbeddingCameraNative(), 512) : null;
 
-            if (primaryStr != null || leftStr != null || rightStr != null) {
+            if (primaryStr != null || leftStr != null || rightStr != null || pitchStr != null || camStr != null) {
                 jdbcTemplate.update(
-                        "UPDATE face_biometric_profiles SET embedding_primary = ?::vector, embedding_left = ?::vector, embedding_right = ?::vector WHERE id = ?",
-                        primaryStr, leftStr, rightStr, saved.getId());
+                        "UPDATE face_biometric_profiles SET embedding_primary = ?::vector, embedding_left = ?::vector, embedding_right = ?::vector, embedding_pitch = ?::vector, embedding_camera_native = ?::vector WHERE id = ?",
+                        primaryStr, leftStr, rightStr, pitchStr, camStr, saved.getId());
                 log.info("Successfully persisted 512-D ArcFace vectors into pgvector for profile {}",
                         saved.getIdentityCode());
             }
@@ -275,6 +362,9 @@ public class BiometricController {
                         if (req.getQualityScore() != null) {
                             profile.setQualityScore(req.getQualityScore());
                         }
+                        if (req.getLaplacianScore() != null) {
+                            profile.setLaplacianScore(req.getLaplacianScore());
+                        }
                         if (req.getIsActive() != null) {
                             profile.setIsActive(req.getIsActive());
                         }
@@ -287,6 +377,15 @@ public class BiometricController {
                         }
                         if (req.getPhotoRight() != null && !req.getPhotoRight().trim().isEmpty()) {
                             profile.setPhotoRight(req.getPhotoRight());
+                        }
+                        if (req.getPhotoPitch() != null && !req.getPhotoPitch().trim().isEmpty()) {
+                            profile.setPhotoPitch(req.getPhotoPitch());
+                        }
+                        if (req.getPhotoCameraNative() != null && !req.getPhotoCameraNative().trim().isEmpty()) {
+                            profile.setPhotoCameraNative(req.getPhotoCameraNative());
+                        }
+                        if (req.getAlignedFaceStraight() != null && !req.getAlignedFaceStraight().trim().isEmpty()) {
+                            profile.setAlignedFaceStraight(req.getAlignedFaceStraight());
                         }
 
                         // Cập nhật an toàn véc-tơ nếu client gửi lên
@@ -329,6 +428,32 @@ public class BiometricController {
                                 }
                             }
                         }
+                        if (req.getEmbeddingPitch() != null && !req.getEmbeddingPitch().isEmpty()) {
+                            String pitchStr = formatVector(req.getEmbeddingPitch(), 512);
+                            if (pitchStr != null) {
+                                try {
+                                    jdbcTemplate.update(
+                                            "UPDATE face_biometric_profiles SET embedding_pitch = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                            pitchStr, profileId);
+                                    log.info("Đã cập nhật embedding_pitch từ client cho hồ sơ ID: {}", profileId);
+                                } catch (Exception ex) {
+                                    log.warn("Không thể cập nhật embedding_pitch cho {}: {}", profileId, ex.getMessage());
+                                }
+                            }
+                        }
+                        if (req.getEmbeddingCameraNative() != null && !req.getEmbeddingCameraNative().isEmpty()) {
+                            String camStr = formatVector(req.getEmbeddingCameraNative(), 512);
+                            if (camStr != null) {
+                                try {
+                                    jdbcTemplate.update(
+                                            "UPDATE face_biometric_profiles SET embedding_camera_native = ?::vector, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                            camStr, profileId);
+                                    log.info("Đã cập nhật embedding_camera_native từ client cho hồ sơ ID: {}", profileId);
+                                } catch (Exception ex) {
+                                    log.warn("Không thể cập nhật embedding_camera_native cho {}: {}", profileId, ex.getMessage());
+                                }
+                            }
+                        }
 
                         // Nếu có hình ảnh khuôn mặt mới kèm theo mà chưa có vector, tiến hành trích
                         // xuất đặc trưng qua miai
@@ -348,6 +473,10 @@ public class BiometricController {
                                         column = "embedding_left";
                                     } else if ("right".equals(angle)) {
                                         column = "embedding_right";
+                                    } else if ("pitch".equals(angle)) {
+                                        column = "embedding_pitch";
+                                    } else if ("camera_native".equals(angle)) {
+                                        column = "embedding_camera_native";
                                     }
                                     double qScore = face.getQualityScore() != null ? face.getQualityScore() : 0.85;
                                     profile.setQualityScore(Math.max(
@@ -591,13 +720,20 @@ public class BiometricController {
                     } else if ("right".equals(angle)) {
                         photoCol = "photo_right";
                         embedCol = "embedding_right";
+                    } else if ("pitch".equals(angle)) {
+                        photoCol = "photo_pitch";
+                        embedCol = "embedding_pitch";
+                    } else if ("camera_native".equals(angle)) {
+                        photoCol = "photo_camera_native";
+                        embedCol = "embedding_camera_native";
                     }
 
-                    // Cập nhật ảnh chất lượng cao vào DB
+                    // Cập nhật ảnh chất lượng cao và phương sai Laplace vào DB
+                    double chunkLapScore = computeLaplacianVariance(fullBase64);
                     String sql = String.format(
-                            "UPDATE face_biometric_profiles SET %s = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                            "UPDATE face_biometric_profiles SET %s = ?, laplacian_score = GREATEST(COALESCE(laplacian_score, 0), ?), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                             photoCol);
-                    jdbcTemplate.update(sql, cleanBase64, profile.getId());
+                    jdbcTemplate.update(sql, cleanBase64, chunkLapScore, profile.getId());
 
                     // Trích xuất vector 512D chất lượng cao qua miai từ ảnh sắc nét
                     try {

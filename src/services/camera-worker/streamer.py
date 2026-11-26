@@ -28,6 +28,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/")
+@app.get("/health")
+def health_check():
+    """Kiểm tra tình trạng hoạt động của tiến trình xử lý camera AI."""
+    return {
+        "status": "UP",
+        "service": "mschool-camera-worker",
+        "timestamp": time.time()
+    }
+
+
 # Bộ đệm lưu trữ khung hình mới nhất của từng camera: {camera_id: np.ndarray}
 _latest_rendered_frames: Dict[str, np.ndarray] = {}
 _connected_websockets: list = []

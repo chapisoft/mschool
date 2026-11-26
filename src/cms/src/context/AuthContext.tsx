@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if ((username === 'admin' && password === 'Admin@2026') || (username === 'ban_giam_hieu' && password === 'School@2026')) {
       const authUser: User = {
         username: username,
-        fullName: username === 'admin' ? 'Quản Trị Viên Hệ Thống' : 'Ban Giám Hiệu Nhà Trường',
+        fullName: username === 'admin' ? 'Administrator' : 'School Board',
         role: 'ADMIN',
         avatarText: username === 'admin' ? 'AD' : 'GH',
       };
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return {
       success: false,
-      message: 'Tài khoản hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.',
+      message: 'ERR_INVALID_CREDENTIALS',
     };
   };
 

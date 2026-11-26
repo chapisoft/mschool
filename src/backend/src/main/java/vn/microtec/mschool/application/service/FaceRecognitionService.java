@@ -157,12 +157,14 @@ public class FaceRecognitionService {
                     "       GREATEST( " +
                     "           1.0 - (embedding_primary <=> ?::vector), " +
                     "           CASE WHEN embedding_left IS NOT NULL THEN (1.0 - (embedding_left <=> ?::vector)) ELSE -1.0 END, " +
-                    "           CASE WHEN embedding_right IS NOT NULL THEN (1.0 - (embedding_right <=> ?::vector)) ELSE -1.0 END " +
+                    "           CASE WHEN embedding_right IS NOT NULL THEN (1.0 - (embedding_right <=> ?::vector)) ELSE -1.0 END, " +
+                    "           CASE WHEN embedding_pitch IS NOT NULL THEN (1.0 - (embedding_pitch <=> ?::vector)) ELSE -1.0 END, " +
+                    "           CASE WHEN embedding_camera_native IS NOT NULL THEN (1.0 - (embedding_camera_native <=> ?::vector)) ELSE -1.0 END " +
                     "       ) as similarity " +
                     "FROM face_biometric_profiles " +
                     "WHERE (is_active = true OR is_active IS NULL) " +
                     "  AND (is_deleted = false OR is_deleted IS NULL) " +
-                    "  AND (embedding_primary IS NOT NULL OR embedding_left IS NOT NULL OR embedding_right IS NOT NULL) " +
+                    "  AND (embedding_primary IS NOT NULL OR embedding_left IS NOT NULL OR embedding_right IS NOT NULL OR embedding_pitch IS NOT NULL OR embedding_camera_native IS NOT NULL) " +
                     "ORDER BY similarity DESC " +
                     "LIMIT 5";
 
@@ -182,7 +184,7 @@ public class FaceRecognitionService {
                         .subjectType(subType)
                         .similarity(rs.getDouble("similarity"))
                         .build();
-            }, vectorStr, vectorStr, vectorStr);
+            }, vectorStr, vectorStr, vectorStr, vectorStr, vectorStr);
 
             if (!candidates.isEmpty()) {
                 log.info("KẾT QUẢ SO KHỚP PGVECTOR: Tìm thấy {} ứng viên (Ứng viên số 1: {} - {:.1f}%)",
@@ -206,9 +208,15 @@ public class FaceRecognitionService {
                 // Tự động thích ứng học đa góc (Adaptive Multi-Pose Auto Enrollment)
                 try {
                     double yaw = primaryFace.getYaw() != null ? primaryFace.getYaw() : 0.0;
+                    double pitch = primaryFace.getPitch() != null ? primaryFace.getPitch() : 0.0;
                     double faceQuality = primaryFace.getQualityScore() != null ? primaryFace.getQualityScore() : 0.0;
                     if (faceQuality >= 0.25) {
-                        if (yaw < -8.0) {
+                        if (pitch < -8.0) {
+                            jdbcTemplate.update(
+                                    "UPDATE face_biometric_profiles SET embedding_pitch = ?::vector, updated_at = CURRENT_TIMESTAMP " +
+                                            "WHERE identity_code = ? AND (embedding_pitch IS NULL OR ? > quality_score)",
+                                    vectorStr, best.getIdentityCode(), faceQuality);
+                        } else if (yaw < -8.0) {
                             jdbcTemplate.update(
                                     "UPDATE face_biometric_profiles SET embedding_left = ?::vector, updated_at = CURRENT_TIMESTAMP " +
                                             "WHERE identity_code = ? AND (embedding_left IS NULL OR ? > quality_score)",
